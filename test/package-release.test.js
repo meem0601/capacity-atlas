@@ -25,6 +25,7 @@ test("desktop launchers use capability tokens and gracefully replace only verifi
   assert.match(source, /vendor\/codex\/windows-x64\/codex\.exe/);
   assert.match(source, /公式認証機能を自動で準備/);
   assert.match(source, /Invoke-RestMethod/);
+  assert.match(source, /`\\uFEFF\$ErrorActionPreference/);
   assert.doesNotMatch(source, /xargs kill/);
   assert.doesNotMatch(source, /Stop-Process[^\r\n]*-Force/);
   assert.doesNotMatch(source, /kill\(pid, 0\) != 0 \|\| !connectorIsReady\(\)/);

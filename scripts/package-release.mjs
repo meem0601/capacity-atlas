@@ -166,7 +166,7 @@ await copyFile(join(release, "capacity-atlas-win-x64.exe"), join(windowsDir, "ca
 await copyFile(join(root, "vendor/codex/windows-x64/codex.exe"), join(windowsDir, "codex.exe"));
 await copyFile(join(root, "vendor/codex/LICENSE"), join(windowsDir, "OPENAI_CODEX_LICENSE.txt"));
 await copyFile(join(root, "THIRD_PARTY_NOTICES.md"), join(windowsDir, "THIRD_PARTY_NOTICES.md"));
-await writeFile(join(windowsDir, "Start-CapacityAtlas.ps1"), `$ErrorActionPreference = 'Stop'
+await writeFile(join(windowsDir, "Start-CapacityAtlas.ps1"), `\uFEFF$ErrorActionPreference = 'Stop'
 $healthUri = 'http://127.0.0.1:4174/api/health'
 $shutdownUri = 'http://127.0.0.1:4174/api/shutdown'
 $runtimePath = Join-Path $HOME '.capacity-atlas\\runtime.json'

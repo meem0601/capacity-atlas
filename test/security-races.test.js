@@ -154,6 +154,30 @@ test("cancellation during asynchronous authentication verification cannot comple
   assert.equal(writes, 0);
 });
 
+test("shutdown during profile creation persists cleanup when immediate removal fails", async () => {
+  let releaseMkdir;
+  const mkdirGate = new Promise(resolve => { releaseMkdir = resolve; });
+  const root = join(tmpdir(), "capacity-atlas-start-cleanup-race");
+  let registry = { version: 1, accounts: [], pendingCleanup: [] };
+  const manager = new AccountManager({
+    root,
+    mkdir: async path => { if (path.includes("profiles")) await mkdirGate; },
+    readFile: async path => path.endsWith("accounts.json")
+      ? JSON.stringify(registry)
+      : JSON.stringify({ version: 1, providers: {} }),
+    writeFile: async (path, value) => { if (path.endsWith("accounts.json")) registry = JSON.parse(value); },
+    rm: async path => { if (path.includes("profiles")) throw new Error("busy"); }
+  });
+  const starting = manager.start("codex");
+  await tick();
+  const stopping = manager.shutdown();
+  releaseMkdir();
+  await assert.rejects(() => starting, /終了/);
+  await stopping;
+  assert.equal(registry.pendingCleanup.length, 1);
+  assert.match(registry.pendingCleanup[0].path, /profiles[\\/]codex[\\/]/);
+});
+
 test("shutdown waits for an in-progress managed helper preparation", async () => {
   let releaseHelper;
   const helperGate = new Promise(resolve => { releaseHelper = resolve; });
