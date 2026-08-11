@@ -12,16 +12,25 @@ test("macOS package uses a native APPL launcher so Finder can launch it", async 
   assert.doesNotMatch(source, /writeFile\(join\(macBin, "Capacity Atlas Connector"\), `#!\/bin\/zsh/);
 });
 
-test("desktop launchers open the local Connector UI without browser network permissions", async () => {
+test("desktop launchers use capability tokens and gracefully replace only verified Connectors", async () => {
   const source = await readFile(scriptPath, "utf8");
-  assert.match(source, /NSWorkspace\.shared\.open\(URL\(string: "http:\/\/127\.0\.0\.1:4174"\)!\)/);
-  assert.match(source, /start "" "http:\/\/127\.0\.0\.1:4174"/);
+  assert.match(source, /CAPACITY_ATLAS_TOKEN/);
+  assert.match(source, /runtime\.json/);
+  assert.match(source, /api\/shutdown/);
+  assert.match(source, /#token=/);
+  assert.match(source, /Capacity Atlas Connector\.app\/Contents\/Resources\/connector/);
+  assert.match(source, /Capacity Atlas\.app\/Contents\/Resources\/connector/);
+  assert.match(source, /ProcessName -ne 'capacity-atlas-connector'/);
   assert.match(source, /vendor\/codex\/macos-arm64\/codex/);
   assert.match(source, /vendor\/codex\/windows-x64\/codex\.exe/);
   assert.match(source, /公式認証機能を自動で準備/);
   assert.match(source, /Invoke-RestMethod/);
-  assert.match(source, /ProcessName -eq 'capacity-atlas-connector'/);
-  assert.match(source, /Stop-Process.*-Force/);
+  assert.doesNotMatch(source, /xargs kill/);
+  assert.doesNotMatch(source, /Stop-Process[^\r\n]*-Force/);
+  assert.doesNotMatch(source, /kill\(pid, 0\) != 0 \|\| !connectorIsReady\(\)/);
+  assert.doesNotMatch(source, /if \(-not \(Get-CapacityHealth\)\) \{ return \$true \}/);
+  assert.match(source, /if kill\(pid, 0\) != 0 \{ return true \}/);
+  assert.match(source, /if \(\$managedRuntime -and -not \$stopped\) \{/);
   assert.doesNotMatch(source, /Claude・Grokの新規認証には各社公式CLIが必要/);
   assert.doesNotMatch(source, /open https:\/\/capacity-atlas\.vercel\.app/);
 });

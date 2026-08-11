@@ -1,10 +1,10 @@
-import { accountTone, deriveSummary, primaryQuota } from "./model.js?v=0.7.3";
-import { loginOpenedLabel, setupGuide } from "./setup-model.js?v=0.7.3";
-import { connectorIsCompatible, createConnectorClient } from "./connector-client.js?v=0.7.3";
-import { parseBrowserLogin, parseDeviceLogin, stripTerminalFormatting } from "./login-output-model.js?v=0.7.3";
+import { accountTone, deriveSummary, primaryQuota } from "./model.js?v=0.7.4";
+import { loginOpenedLabel, setupGuide } from "./setup-model.js?v=0.7.4";
+import { connectorIsCompatible, createConnectorClient } from "./connector-client.js?v=0.7.4";
+import { parseBrowserLogin, parseDeviceLogin, stripTerminalFormatting } from "./login-output-model.js?v=0.7.4";
 
 const connector = createConnectorClient();
-const state = { data: { accounts: [], collectedAt: null }, provider: "all", countdown: 60, setupProvider: "codex", connectorReady: false, connectorOutdated: false, loginTimer: null, disconnectAccountId: null, setupReturnFocus: null, disconnectReturnFocus: null };
+const state = { data: { accounts: [], collectedAt: null }, provider: "all", countdown: 60, setupProvider: "codex", connectorReady: false, connectorOutdated: false, loginTimer: null, activeLoginId: null, disconnectAccountId: null, setupReturnFocus: null, disconnectReturnFocus: null };
 const $ = selector => document.querySelector(selector);
 const COLORS = { codex: "#10a37f", claude: "#d97757", grok: "#8b9dff" };
 const PROVIDER_ASSETS = {
@@ -156,12 +156,18 @@ async function checkConnector() {
   try {
     const health = await connector.health();
     if (!health.ready) throw new Error("not ready");
-    if (!connectorIsCompatible(health)) {
+    if (health.requiresToken && !connector.authorized) {
+      state.connectorReady = false;
+      state.connectorOutdated = false;
+      banner.className = "connector-banner missing";
+      $("#connectorTitle").textContent = "Connectorからこの画面を開き直してください";
+      $("#connectorDetail").textContent = "安全な一時接続を作るため、Connectorアプリをもう一度起動します";
+    } else if (!connectorIsCompatible(health)) {
       state.connectorReady = false;
       state.connectorOutdated = true;
       banner.className = "connector-banner missing";
       $("#connectorTitle").textContent = "Connectorの更新が必要です";
-      $("#connectorDetail").textContent = `現在はv${health.version || "不明"}です。v0.5.0以上へ置き換えてください`;
+      $("#connectorDetail").textContent = `現在はv${health.version || "不明"}です。v0.7.4へ置き換えてください`;
     } else {
       state.connectorReady = true;
       state.connectorOutdated = false;
@@ -202,6 +208,9 @@ function closeSetupDialog() {
 function handleSetupDialogClosed() {
   if (state.loginTimer) clearInterval(state.loginTimer);
   state.loginTimer = null;
+  const activeLoginId = state.activeLoginId;
+  state.activeLoginId = null;
+  if (activeLoginId) void connector.cancelLogin(activeLoginId).catch(() => {});
   state.setupReturnFocus?.focus?.();
   state.setupReturnFocus = null;
 }
@@ -267,7 +276,12 @@ async function startAccountLogin() {
   renderLoginProgress(output, "");
   try {
     const session = await connector.startLogin(state.setupProvider);
-    if (!$("#accountSetupDialog").open) return;
+    state.activeLoginId = session.id;
+    if (!$("#accountSetupDialog").open) {
+      state.activeLoginId = null;
+      await connector.cancelLogin(session.id).catch(() => {});
+      return;
+    }
     const update = async () => {
       const progress = await connector.loginStatus(session.id);
       if (!$("#accountSetupDialog").open) return true;
@@ -275,15 +289,17 @@ async function startAccountLogin() {
       if (progress.status === "completed") {
         if (state.loginTimer) clearInterval(state.loginTimer);
         state.loginTimer = null;
+        state.activeLoginId = null;
         button.textContent = "接続完了";
         renderLoginResult(output, true);
         showToast("アカウントを追加しました");
         await loadData(true);
         return true;
       }
-      if (progress.status === "failed") {
+      if (["failed", "cancelled", "expired"].includes(progress.status)) {
         if (state.loginTimer) clearInterval(state.loginTimer);
         state.loginTimer = null;
+        state.activeLoginId = null;
         button.disabled = false;
         button.textContent = "もう一度接続する";
         renderLoginResult(output, false, progress.output);

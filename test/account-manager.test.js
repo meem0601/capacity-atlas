@@ -90,7 +90,10 @@ test("Claude OAuth completion is verified with the official auth status instead 
   });
 
   const session = await manager.start("claude");
-  await new Promise(resolve => setImmediate(resolve));
+  for (let attempt = 0; attempt < 20 && child.listenerCount("close") === 0; attempt += 1) {
+    await new Promise(resolve => setImmediate(resolve));
+  }
+  assert.ok(child.listenerCount("close") > 0, "Claude OAuth child did not become ready");
   child.emit("close", 0);
   for (let attempt = 0; attempt < 20 && manager.get(session.id).status !== "completed"; attempt += 1) {
     await new Promise(resolve => setTimeout(resolve, 5));
@@ -351,4 +354,171 @@ test("AccountManager exposes login progress without exposing the child process",
   assert.equal(failed.status, "failed");
   assert.match(failed.output, /認証機能を起動できませんでした/);
   assert.doesNotMatch(failed.output, /ENOENT/);
+});
+
+test("cancelling an OAuth session terminates its child process and marks it cancelled", async () => {
+  const child = new EventEmitter();
+  child.stdout = new EventEmitter();
+  child.stderr = new EventEmitter();
+  const signals = [];
+  child.kill = signal => {
+    signals.push(signal);
+    child.emit("close", null, signal);
+    return true;
+  };
+  const manager = new AccountManager({
+    root: "/tmp/capacity-atlas-cancel-login-test",
+    spawn: () => child,
+    mkdir: async () => {},
+    rm: async () => {}
+  });
+
+  const session = await manager.start("codex");
+  const result = await manager.cancel(session.id);
+
+  assert.equal(result.cancelled, true);
+  assert.deepEqual(signals, ["SIGTERM"]);
+  assert.equal(manager.get(session.id).status, "cancelled");
+});
+
+test("an abandoned OAuth session expires and releases its child after the login TTL", async () => {
+  const child = new EventEmitter();
+  child.stdout = new EventEmitter();
+  child.stderr = new EventEmitter();
+  const signals = [];
+  child.kill = signal => {
+    signals.push(signal);
+    child.emit("close", null, signal);
+    return true;
+  };
+  const manager = new AccountManager({
+    root: "/tmp/capacity-atlas-expired-login-test",
+    spawn: () => child,
+    mkdir: async () => {},
+    rm: async () => {},
+    loginTimeoutMs: 10
+  });
+
+  const session = await manager.start("codex");
+  await new Promise(resolve => setTimeout(resolve, 30));
+
+  assert.deepEqual(signals, ["SIGTERM"]);
+  assert.equal(manager.get(session.id).status, "expired");
+  assert.match(manager.get(session.id).output, /時間切れ/);
+});
+
+test("starting a second login replaces the active session for the same provider", async () => {
+  const children = [0, 1].map(() => {
+    const child = new EventEmitter();
+    child.stdout = new EventEmitter();
+    child.stderr = new EventEmitter();
+    child.signals = [];
+    child.kill = signal => {
+      child.signals.push(signal);
+      child.emit("close", null, signal);
+      return true;
+    };
+    return child;
+  });
+  let index = 0;
+  const manager = new AccountManager({
+    root: "/tmp/capacity-atlas-single-login-test",
+    spawn: () => children[index++],
+    mkdir: async () => {},
+    rm: async () => {}
+  });
+
+  const first = await manager.start("codex");
+  const second = await manager.start("codex");
+
+  assert.deepEqual(children[0].signals, ["SIGTERM"]);
+  assert.equal(manager.get(first.id).status, "cancelled");
+  assert.notEqual(second.id, first.id);
+  assert.equal(index, 2);
+});
+
+test("concurrent starts still leave only one active login for a provider", async () => {
+  const children = [0, 1].map(() => {
+    const child = new EventEmitter();
+    child.stdout = new EventEmitter();
+    child.stderr = new EventEmitter();
+    child.signals = [];
+    child.kill = signal => {
+      child.signals.push(signal);
+      child.emit("close", null, signal);
+      return true;
+    };
+    return child;
+  });
+  let index = 0;
+  const manager = new AccountManager({
+    root: "/tmp/capacity-atlas-concurrent-login-test",
+    spawn: () => children[index++],
+    mkdir: async () => { await new Promise(resolve => setImmediate(resolve)); },
+    rm: async () => {}
+  });
+
+  const sessions = await Promise.all([manager.start("codex"), manager.start("codex")]);
+  const active = sessions.filter(session => manager.get(session.id).status !== "cancelled");
+
+  assert.equal(active.length, 1);
+  assert.equal(children.filter(child => child.signals.includes("SIGTERM")).length, 1);
+});
+
+test("Connector shutdown terminates every active OAuth child", async () => {
+  const children = [0, 1].map(() => {
+    const child = new EventEmitter();
+    child.stdout = new EventEmitter();
+    child.stderr = new EventEmitter();
+    child.signals = [];
+    child.kill = signal => {
+      child.signals.push(signal);
+      child.emit("close", null, signal);
+      return true;
+    };
+    return child;
+  });
+  let index = 0;
+  const manager = new AccountManager({
+    root: "/tmp/capacity-atlas-shutdown-login-test",
+    spawn: () => children[index++],
+    helperManager: { ensure: async () => "/managed/helpers/grok" },
+    mkdir: async () => {},
+    rm: async () => {}
+  });
+
+  await manager.start("codex");
+  const grok = await manager.start("grok");
+  for (let attempt = 0; attempt < 20 && manager.get(grok.id).status === "preparing"; attempt += 1) {
+    await new Promise(resolve => setImmediate(resolve));
+  }
+  await manager.shutdown();
+
+  assert.deepEqual(children.map(child => child.signals), [["SIGTERM"], ["SIGTERM"]]);
+  assert.equal([...manager.sessions.values()].every(session => session.status === "cancelled"), true);
+});
+
+test("cancellation force-kills an OAuth child that ignores SIGTERM", async () => {
+  const child = new EventEmitter();
+  child.stdout = new EventEmitter();
+  child.stderr = new EventEmitter();
+  child.signals = [];
+  child.kill = signal => {
+    child.signals.push(signal);
+    if (signal === "SIGKILL") child.emit("close", null, signal);
+    return true;
+  };
+  const manager = new AccountManager({
+    root: "/tmp/capacity-atlas-force-kill-test",
+    spawn: () => child,
+    mkdir: async () => {},
+    rm: async () => {},
+    killGraceMs: 10
+  });
+
+  const session = await manager.start("codex");
+  await manager.cancel(session.id);
+
+  assert.deepEqual(child.signals, ["SIGTERM", "SIGKILL"]);
+  assert.equal(manager.get(session.id).status, "cancelled");
 });

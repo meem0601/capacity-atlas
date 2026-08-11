@@ -148,13 +148,15 @@ test("Claude macOS Keychain lookup is scoped to the current OS user", async () =
   const result = await readClaudeKeychain({
     platform: "darwin",
     username: "desktop-user",
-    execFile: async (command, args) => {
-      invocation = { command, args };
+    execFile: async (command, args, options) => {
+      invocation = { command, args, options };
       return { stdout: '{"claudeAiOauth":{"accessToken":"secret"}}' };
     }
   });
   assert.equal(invocation.command, "/usr/bin/security");
   assert.deepEqual(invocation.args, ["find-generic-password", "-a", "desktop-user", "-s", "Claude Code-credentials", "-w"]);
+  assert.equal(invocation.options.env.CAPACITY_ATLAS_TOKEN, undefined);
+  assert.equal(invocation.options.env.CAPACITY_ATLAS_RUNTIME_PATH, undefined);
   assert.equal(result.claudeAiOauth.accessToken, "secret");
 });
 

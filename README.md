@@ -24,7 +24,7 @@ Connectorを起動し、ブラウザで「アカウントを追加」を押し�
 
 1. ZIPを展開し、`Capacity Atlas Connector.app`を「アプリケーション」フォルダへ移動します。
 2. 現在の配布版はApple公証前です。通常のダブルクリックで警告が出た場合は、アプリを**controlクリック→「開く」→「開く」**の順に選びます。
-3. ブラウザが自動で開かない場合は、<http://127.0.0.1:4174> を開きます。
+3. ブラウザが自動で開かない場合は、Connectorアプリをもう一度開きます。安全な一時接続情報は起動時URLで渡すため、URLだけを手入力しません。
 
 対応機種はApple Silicon搭載Macです。警告を許可する前に、GitHub ReleaseのSHA-256とダウンロードしたZIPが一致することを確認してください。
 
@@ -33,7 +33,7 @@ Connectorを起動し、ブラウザで「アカウントを追加」を押し�
 1. ZIPを展開し、フォルダ内のファイルを分離せずそのまま保持します。
 2. `Start Capacity Atlas.cmd`をダブルクリックします。
 3. 現在の配布版はコード署名前です。SmartScreenが表示された場合は、GitHub Releaseの配布元・ファイル名・SHA-256を確認した場合だけ**「詳細情報」→「実行」**を選びます。
-4. ブラウザが自動で開かない場合は、<http://127.0.0.1:4174> を開きます。
+4. ブラウザが自動で開かない場合は、`Start Capacity Atlas.cmd`をもう一度実行します。
 
 PowerShellでSHA-256を確認する例：
 
@@ -50,6 +50,7 @@ Get-FileHash .\Capacity-Atlas-Connector-Windows-x64.zip -Algorithm SHA256
 - macOS KeychainおよびWindows / Linuxの保護された認証ファイルに対応
 - 認証状態と、一時的な利用枠APIエラーを分離
 - ホストされたUIへトークン、Cookie、実利用枠を送信しない
+- OAuth待機は15分で自動終了し、画面を閉じた場合も子プロセスを回収
 
 ## 構成
 
@@ -82,7 +83,7 @@ npm run build
 npm start
 ```
 
-ローカル画面は <http://127.0.0.1:4174> です。UIは60秒間隔で更新し、Connectorは同一結果を最大60秒キャッシュします。
+`npm start`は一時トークン付きのローカル画面を自動で開きます。トークンは標準出力へ表示せず、UIがURL履歴から即時除去してタブ内だけに保持します。UIは60秒間隔で更新し、Connectorは同一結果を最大60秒キャッシュします。
 
 ## 再現可能な配布ビルド
 
@@ -102,7 +103,10 @@ npm run build:release
 ## 安全設計
 
 - Connectorはloopback（`127.0.0.1`）だけで待ち受けます。
-- APIのWeb Originは公開版Capacity Atlasとlocalhostだけを許可します。
+- APIのWeb Originは公開版Capacity Atlasか、接続先Connector自身と完全一致するOriginだけを許可します。
+- health以外のAPIは起動ごとに生成する32バイト相当の能力トークンを要求し、URL履歴から即時除去してタブ内だけに保持します。
+- 実行中メタデータは`~/.capacity-atlas/runtime.json`へ保存し、POSIXでは権限`0600`、WindowsではユーザープロファイルACLで保護します。ランチャー更新時は認証済み終了APIを優先します。
+- OAuth待機は15分TTL、明示取消、プロバイダーごと1セッションに制限し、Connector終了時は全子プロセスを回収します。
 - 認証出力はトークン形式をマスクしてからUIへ返します。
 - 公開Web版は `/api/status` を持たず、認証情報・実アカウントデータを保存しません。
 - ブラウザへOAuthトークンを入力・保存させません。

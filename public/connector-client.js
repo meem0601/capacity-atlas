@@ -1,8 +1,35 @@
+export function readConnectorToken({
+  location = globalThis.location,
+  storage = globalThis.sessionStorage,
+  history = globalThis.history
+} = {}) {
+  const key = "capacity-atlas-token";
+  const valid = value => typeof value === "string" && /^[A-Za-z0-9_-]{20,256}$/.test(value);
+  let launched = null;
+  try {
+    const parameters = new URLSearchParams(String(location?.hash || "").replace(/^#/, ""));
+    launched = parameters.get("token");
+    if (launched !== null) {
+      history?.replaceState?.(null, "", `${location?.pathname || "/"}${location?.search || ""}`);
+    }
+  } catch {}
+  if (valid(launched)) {
+    try { storage?.setItem?.(key, launched); } catch {}
+    return launched;
+  }
+  try {
+    const stored = storage?.getItem?.(key);
+    return valid(stored) ? stored : null;
+  } catch {
+    return null;
+  }
+}
+
 export function connectorBase(location = globalThis.location) {
   return ["127.0.0.1", "localhost"].includes(location?.hostname) ? "" : "http://127.0.0.1:4174";
 }
 
-export function connectorIsCompatible(health, minimum = "0.5.0") {
+export function connectorIsCompatible(health, minimum = "0.7.4") {
   if (!health?.ready || !/^\d+\.\d+\.\d+$/.test(health.version || "")) return false;
   const current = health.version.split(".").map(Number);
   const required = minimum.split(".").map(Number);
@@ -13,7 +40,7 @@ export function connectorIsCompatible(health, minimum = "0.5.0") {
   return true;
 }
 
-export function createConnectorClient({ base = connectorBase(), fetch = globalThis.fetch } = {}) {
+export function createConnectorClient({ base = connectorBase(), fetch = globalThis.fetch, token = readConnectorToken() } = {}) {
   async function request(path, options = {}) {
     let response;
     try {
@@ -23,6 +50,7 @@ export function createConnectorClient({ base = connectorBase(), fetch = globalTh
         ...options,
         headers: {
           ...(options.body ? { "content-type": "application/json" } : {}),
+          ...(token ? { "x-capacity-atlas-token": token } : {}),
           ...(options.headers || {})
         }
       });
@@ -38,6 +66,7 @@ export function createConnectorClient({ base = connectorBase(), fetch = globalTh
 
   return {
     url: base || globalThis.location?.origin || "http://127.0.0.1:4174",
+    authorized: Boolean(token),
     health: () => request("/api/health"),
     status: () => request("/api/status"),
     refresh: () => request("/api/refresh", { method: "POST" }),
@@ -46,6 +75,7 @@ export function createConnectorClient({ base = connectorBase(), fetch = globalTh
       body: JSON.stringify({ provider })
     }),
     disconnectAccount: id => request(`/api/accounts/${encodeURIComponent(id)}`, { method: "DELETE" }),
-    loginStatus: id => request(`/api/login/${encodeURIComponent(id)}`)
+    loginStatus: id => request(`/api/login/${encodeURIComponent(id)}`),
+    cancelLogin: id => request(`/api/login/${encodeURIComponent(id)}`, { method: "DELETE" })
   };
 }

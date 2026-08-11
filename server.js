@@ -1,7 +1,8 @@
 import http from "node:http";
+import { timingSafeEqual } from "node:crypto";
 import { readFile, stat } from "node:fs/promises";
-import { extname, join, normalize } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { extname, resolve, sep } from "node:path";
+import { fileURLToPath } from "node:url";
 import { collectDirectProviders } from "./lib/direct-collector.js";
 import { AccountManager } from "./lib/account-manager.js";
 
@@ -17,24 +18,34 @@ const ALLOWED_ORIGINS = new Set([
   "https://capacity-atlas.vercel.app"
 ]);
 
-function isAllowedOrigin(origin) {
+function isAllowedOrigin(origin, requestHost) {
   if (!origin) return true;
   if (ALLOWED_ORIGINS.has(origin)) return true;
+  if (!requestHost) return false;
   try {
     const url = new URL(origin);
-    return url.protocol === "http:" && ["127.0.0.1", "localhost"].includes(url.hostname);
+    return url.protocol === "http:"
+      && ["127.0.0.1", "localhost"].includes(url.hostname)
+      && url.host === requestHost;
   } catch {
     return false;
   }
 }
 
+function tokenMatches(actual, expected) {
+  if (!expected || typeof actual !== "string") return !expected;
+  const left = Buffer.from(actual);
+  const right = Buffer.from(expected);
+  return left.length === right.length && timingSafeEqual(left, right);
+}
+
 function corsHeaders(request) {
   const origin = request.headers.origin;
-  if (!origin || !isAllowedOrigin(origin)) return {};
+  if (!origin || !isAllowedOrigin(origin, request.headers.host)) return {};
   return {
     "access-control-allow-origin": origin,
     "access-control-allow-methods": "GET, POST, DELETE, OPTIONS",
-    "access-control-allow-headers": "content-type",
+    "access-control-allow-headers": "content-type, x-capacity-atlas-token",
     "access-control-allow-private-network": "true",
     vary: "Origin"
   };
@@ -71,17 +82,34 @@ async function readJsonBody(request, maxBytes = 10_000) {
   }
 }
 
-function safePublicPath(pathname) {
-  const requested = pathname === "/" ? "index.html" : pathname.replace(/^\/+/, "");
-  const cleaned = normalize(requested).replace(/^(\.\.(\/|\\|$))+/, "");
-  return join(ROOT, cleaned);
+export function safePublicPath(pathname) {
+  const notFound = () => Object.assign(new Error("Not found"), { code: "ENOENT" });
+  let decoded;
+  try {
+    decoded = decodeURIComponent(pathname);
+  } catch {
+    throw notFound();
+  }
+  if (decoded.includes("\0") || decoded.split(/[\\/]+/).includes("..")) throw notFound();
+  const requested = decoded === "/" ? "index.html" : decoded.replace(/^[\\/]+/, "");
+  const root = resolve(ROOT);
+  const target = resolve(root, requested);
+  if (!target.startsWith(`${root}${sep}`)) throw notFound();
+  return target;
 }
 
-export function createServer({ collect, refreshMs = 60_000, accountManager = new AccountManager() } = {}) {
+export function createServer({ collect, refreshMs = 60_000, accountManager = new AccountManager(), apiToken = null } = {}) {
   const collectAccounts = collect || (async () => collectDirectProviders({ homes: await accountManager.homes() }));
   let snapshot = null;
   let collectedAtMs = 0;
   let inFlight = null;
+  let shutdownPromise = null;
+  let isStopping = false;
+  const shutdownAccounts = () => {
+    isStopping = true;
+    if (!shutdownPromise) shutdownPromise = Promise.resolve(accountManager.shutdown?.());
+    return shutdownPromise;
+  };
 
   async function getSnapshot(force = false) {
     const stale = Date.now() - collectedAtMs >= refreshMs;
@@ -98,10 +126,10 @@ export function createServer({ collect, refreshMs = 60_000, accountManager = new
     return inFlight;
   }
 
-  return http.createServer(async (request, response) => {
+  const server = http.createServer(async (request, response) => {
     const url = new URL(request.url || "/", "http://127.0.0.1");
     try {
-      if (url.pathname.startsWith("/api/") && request.headers.origin && !isAllowedOrigin(request.headers.origin)) {
+      if (url.pathname.startsWith("/api/") && request.headers.origin && !isAllowedOrigin(request.headers.origin, request.headers.host)) {
         return json(request, response, 403, { error: "Origin not allowed" });
       }
       if (request.method === "OPTIONS" && url.pathname.startsWith("/api/")) {
@@ -111,10 +139,24 @@ export function createServer({ collect, refreshMs = 60_000, accountManager = new
       if (request.method === "GET" && url.pathname === "/api/health") {
         return json(request, response, 200, {
           name: "Capacity Atlas Connector",
-          version: "0.7.3",
-          ready: true,
-          codexBar: false
+          version: "0.7.4",
+          ready: !isStopping,
+          stopping: isStopping,
+          codexBar: false,
+          requiresToken: Boolean(apiToken)
         });
+      }
+      if (url.pathname.startsWith("/api/") && !tokenMatches(request.headers["x-capacity-atlas-token"], apiToken)) {
+        return json(request, response, 401, { error: "Connector authorization required" });
+      }
+      if (isStopping && !(request.method === "POST" && url.pathname === "/api/shutdown")) {
+        return json(request, response, 503, { error: "Connector is stopping" });
+      }
+      if (request.method === "POST" && url.pathname === "/api/shutdown") {
+        await shutdownAccounts();
+        json(request, response, 202, { stopping: true });
+        setImmediate(() => server.close());
+        return;
       }
       if (request.method === "GET" && url.pathname === "/api/status") {
         return json(request, response, 200, await getSnapshot(false));
@@ -142,6 +184,13 @@ export function createServer({ collect, refreshMs = 60_000, accountManager = new
         snapshot = null;
         collectedAtMs = 0;
         return json(request, response, 200, result);
+      }
+      if (request.method === "DELETE" && url.pathname.startsWith("/api/login/")) {
+        const sessionId = decodeURIComponent(url.pathname.slice("/api/login/".length));
+        const result = await accountManager.cancel(sessionId);
+        return result.cancelled
+          ? json(request, response, 200, result)
+          : json(request, response, 404, { error: "Login session not found" });
       }
       if (request.method === "GET" && url.pathname.startsWith("/api/login/")) {
         const session = accountManager.get(decodeURIComponent(url.pathname.slice("/api/login/".length)));
@@ -174,13 +223,7 @@ export function createServer({ collect, refreshMs = 60_000, accountManager = new
       });
     }
   });
-}
-
-const isMain = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
-if (isMain) {
-  const port = Number(process.env.PORT || 4174);
-  const host = process.env.HOST || "127.0.0.1";
-  createServer().listen(port, host, () => {
-    console.log(`Capacity Atlas Connector listening on http://${host}:${port}`);
-  });
+  server.shutdownAccounts = shutdownAccounts;
+  server.on("close", () => { void shutdownAccounts(); });
+  return server;
 }

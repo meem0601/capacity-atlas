@@ -40,6 +40,6 @@ test("account setup modal is present and accessible", () => {
 test("outdated Connector is blocked with an explicit update message", () => {
   assert.match(client, /connectorIsCompatible/);
   assert.match(client, /Connectorの更新が必要です/);
-  assert.match(client, /v0\.5\.0以上へ置き換えてください/);
+  assert.match(client, /v0\.7\.4へ置き換えてください/);
   assert.match(client, /state\.connectorOutdated \? "Connectorを更新してください" : guide\.actionLabel/);
 });

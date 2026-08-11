@@ -24,7 +24,7 @@ Launch the Connector, click **Add account**, and complete OAuth in your browser.
 
 1. Extract the ZIP and move `Capacity Atlas Connector.app` to Applications.
 2. The current release is not yet Apple-notarized. If macOS blocks a normal double-click, **Control-click the app, choose Open, then choose Open again**.
-3. If the browser does not open automatically, visit <http://127.0.0.1:4174>.
+3. If the browser does not open automatically, launch the Connector app again. Do not type the loopback URL manually: the launcher supplies a temporary local capability in the launch URL.
 
 This package supports Apple Silicon Macs. Before bypassing the warning, compare the downloaded ZIP's SHA-256 with the value published in the GitHub Release.
 
@@ -33,7 +33,7 @@ This package supports Apple Silicon Macs. Before bypassing the warning, compare 
 1. Extract the entire ZIP and keep every file in the same folder.
 2. Double-click `Start Capacity Atlas.cmd`.
 3. The current release is not yet code-signed. If SmartScreen appears, choose **More info → Run anyway** only after verifying the GitHub Release source, filename, and SHA-256.
-4. If the browser does not open automatically, visit <http://127.0.0.1:4174>.
+4. If the browser does not open automatically, run `Start Capacity Atlas.cmd` again.
 
 SHA-256 verification in PowerShell:
 
@@ -51,6 +51,7 @@ Get-FileHash .\Capacity-Atlas-Connector-Windows-x64.zip -Algorithm SHA256
 - No fabricated account cards on a new machine
 - Local Connector with a hosted static UI
 - Provider credentials remain on the local machine
+- OAuth waits expire after 15 minutes, and closing the setup dialog cancels the local child process
 
 ## Privacy and security
 
@@ -58,7 +59,7 @@ The hosted page is a static UI. The local Connector reads credentials from provi
 
 Capacity Atlas does **not** send access tokens, refresh tokens, cookies, or raw quota responses to the hosted UI or to a Capacity Atlas backend.
 
-The Connector listens on `127.0.0.1:4174` and restricts browser origins. Do not expose it to a LAN or the public internet.
+The Connector listens on `127.0.0.1:4174` and allows only the exact hosted Capacity Atlas origin or its own exact origin. Every API except health requires a per-launch capability token. The launcher passes that token in a URL fragment; the UI immediately removes it from browser history and keeps it only in tab-scoped session storage. Runtime metadata is stored locally with mode `0600` on POSIX systems and under the user-profile ACL on Windows, then removed when the Connector stops. Do not expose the Connector to a LAN or the public internet.
 
 Please report security issues privately as described in [SECURITY.md](SECURITY.md).
 
@@ -94,7 +95,7 @@ npm run build
 npm start
 ```
 
-Open [http://127.0.0.1:4174](http://127.0.0.1:4174).
+`npm start` opens the local dashboard with a temporary capability automatically. The capability is never printed to standard output; the UI removes it from the URL immediately and keeps it only for that browser tab.
 
 ## Build release packages
 

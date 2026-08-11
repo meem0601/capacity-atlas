@@ -25,3 +25,57 @@ jobs:
       - run: npm run check
       - run: npm test
       - run: npm run build
+
+  release-artifacts:
+    needs: test
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run build:release
+      - name: Verify archives and macOS bundle
+        run: |
+          unzip -t "release/Capacity-Atlas-Connector-macOS-arm64.zip"
+          unzip -t "release/Capacity-Atlas-Connector-Windows-x64.zip"
+          plutil -lint "release/Capacity Atlas Connector.app/Contents/Info.plist"
+          codesign --verify --deep --strict --verbose=2 "release/Capacity Atlas Connector.app"
+          python3 - <<'PY'
+          from pathlib import Path
+          windows = Path("release/Capacity Atlas Connector Windows/capacity-atlas-connector.exe")
+          launcher = Path("release/Capacity Atlas Connector.app/Contents/MacOS/Capacity Atlas Connector")
+          connector = Path("release/Capacity Atlas Connector.app/Contents/Resources/connector")
+          assert windows.read_bytes()[:2] == b"MZ"
+          assert launcher.stat().st_mode & 0o111
+          assert connector.stat().st_mode & 0o111
+          PY
+      - uses: actions/upload-artifact@v6
+        with:
+          name: release-validation-inputs
+          path: |
+            release/Capacity Atlas Connector Windows/Start-CapacityAtlas.ps1
+            release/Capacity Atlas Connector Windows/capacity-atlas-connector.exe
+            release/Capacity-Atlas-Connector-macOS-arm64.zip
+            release/Capacity-Atlas-Connector-Windows-x64.zip
+
+  windows-launcher-static:
+    needs: release-artifacts
+    runs-on: windows-latest
+    steps:
+      - uses: actions/download-artifact@v6
+        with:
+          name: release-validation-inputs
+          path: release-validation-inputs
+      - name: Parse PowerShell launcher and verify PE
+        shell: powershell
+        run: |
+          $launcher = Get-ChildItem -Path release-validation-inputs -Filter Start-CapacityAtlas.ps1 -Recurse | Select-Object -First 1
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile($launcher.FullName, [ref]$null, [ref]$errors) | Out-Null
+          if ($errors.Count -ne 0) { $errors | ForEach-Object { Write-Error $_.Message }; exit 1 }
+          $connector = Get-ChildItem -Path release-validation-inputs -Filter capacity-atlas-connector.exe -Recurse | Select-Object -First 1
+          $bytes = [System.IO.File]::ReadAllBytes($connector.FullName)
+          if ($bytes.Length -lt 2 -or $bytes[0] -ne 0x4d -or $bytes[1] -ne 0x5a) { throw 'Invalid Windows PE header' }
