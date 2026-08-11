@@ -6,7 +6,7 @@ import { dirname, join } from "node:path";
 import { AccountManager } from "./lib/account-manager.js";
 import { createServer } from "./server.js";
 
-const VERSION = "0.7.5";
+const VERSION = "0.8.0";
 const port = Number(process.env.PORT || 4174);
 const host = "127.0.0.1";
 const apiToken = process.env.CAPACITY_ATLAS_TOKEN || randomBytes(32).toString("base64url");

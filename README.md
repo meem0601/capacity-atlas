@@ -43,6 +43,8 @@ Get-FileHash .\Capacity-Atlas-Connector-Windows-x64.zip -Algorithm SHA256
 
 ## 特徴
 
+- 画面内の`EN / JA`ボタンで日英を即時切替し、選択言語を端末内に保存
+- 接続済みアカウントがあるサービスだけをフィルターと凡例へ表示
 - 起動直後に、接続済みアカウントの残容量とリセット時刻を表示
 - OpenAI、Claude、GrokのブラウザOAuthをConnectorから開始
 - 同一プロバイダー・同一アカウントの重複接続を1枚へ集約

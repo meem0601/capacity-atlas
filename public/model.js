@@ -6,6 +6,11 @@ export function primaryQuota(account) {
   }, null);
 }
 
+export function visibleProviders(accounts = []) {
+  const supported = new Set(["codex", "claude", "grok"]);
+  return [...new Set(accounts.map(account => account?.provider).filter(provider => supported.has(provider)))].sort((a, b) => ["codex", "claude", "grok"].indexOf(a) - ["codex", "claude", "grok"].indexOf(b));
+}
+
 export function deriveSummary(accounts = []) {
   const quotas = accounts.map(primaryQuota).filter(Boolean);
   const averageRemaining = quotas.length

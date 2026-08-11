@@ -1,6 +1,6 @@
 {
   "name": "capacity-atlas",
-  "version": "0.7.5",
+  "version": "0.8.0",
   "description": "Local-first dashboard for monitoring AI account capacity across OpenAI Codex, Claude, and Grok",
   "license": "MIT",
   "private": false,

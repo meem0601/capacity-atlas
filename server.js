@@ -139,7 +139,7 @@ export function createServer({ collect, refreshMs = 60_000, accountManager = new
       if (request.method === "GET" && url.pathname === "/api/health") {
         return json(request, response, 200, {
           name: "Capacity Atlas Connector",
-          version: "0.7.5",
+          version: "0.8.0",
           ready: !isStopping,
           stopping: isStopping,
           codexBar: false,

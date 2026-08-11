@@ -43,6 +43,8 @@ Get-FileHash .\Capacity-Atlas-Connector-Windows-x64.zip -Algorithm SHA256
 
 ## Highlights
 
+- Instant in-app Japanese/English switching with the preference saved locally
+- Provider filters and legend marks appear only for services with connected accounts
 - Dashboard-first interface with no marketing landing screen
 - Multiple accounts across OpenAI Codex, Claude, and Grok
 - Remaining capacity, reset time, plan, and authentication state

@@ -46,7 +46,7 @@ test("production entry writes protected runtime metadata and shuts down through 
 
   const runtime = await retry(async () => JSON.parse(await readFile(runtimePath, "utf8")));
   assert.equal(runtime.name, "Capacity Atlas Connector");
-  assert.equal(runtime.version, "0.7.5");
+  assert.equal(runtime.version, "0.8.0");
   assert.equal(runtime.pid, child.pid);
   assert.equal(runtime.host, "127.0.0.1");
   assert.equal(runtime.token, token);

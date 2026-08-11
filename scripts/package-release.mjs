@@ -1,6 +1,7 @@
 import { chmod, copyFile, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
 import { join } from "node:path";
+import { writeReleaseChecksums } from "./release-checksums.mjs";
 
 const root = new URL("../", import.meta.url).pathname;
 const { version } = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
@@ -268,4 +269,8 @@ for (const path of [join(release, "Capacity-Atlas-Connector-macOS-arm64.zip"), j
 }
 execFileSync("ditto", ["-c", "-k", "--sequesterRsrc", "--keepParent", macApp, join(release, "Capacity-Atlas-Connector-macOS-arm64.zip")]);
 execFileSync("ditto", ["-c", "-k", "--keepParent", windowsDir, join(release, "Capacity-Atlas-Connector-Windows-x64.zip")]);
+await writeReleaseChecksums(release, [
+  "Capacity-Atlas-Connector-Windows-x64.zip",
+  "Capacity-Atlas-Connector-macOS-arm64.zip"
+]);
 console.log("Packaged macOS and Windows Connector archives in release/");

@@ -6,51 +6,53 @@
   <meta name="theme-color" content="#090b0f">
   <meta name="description" content="複数AIアカウントの残容量・リセット日時・認証状態を一画面で確認するローカルファースト管理ツール">
   <title>Capacity Atlas — AI利用枠管理</title>
-  <link rel="stylesheet" href="/styles.css?v=0.7.5">
-  <link rel="stylesheet" href="/connector.css?v=0.7.5">
+  <script src="/locale-bootstrap.js?v=0.8.0"></script>
+  <link rel="stylesheet" href="/styles.css?v=0.8.0">
+  <link rel="stylesheet" href="/connector.css?v=0.8.0">
 </head>
 <body>
   <div class="app-shell">
-    <aside class="sidebar" aria-label="メインナビゲーション">
-      <a class="brand" href="#accounts" aria-label="Capacity Atlas ホーム">
+    <aside class="sidebar" aria-label="メインナビゲーション" data-i18n-aria="nav.main">
+      <a class="brand" href="#accounts" aria-label="Capacity Atlas ホーム" data-i18n-aria="nav.home">
         <span class="brand-mark"><i></i><i></i><i></i></span>
         <span>Capacity Atlas</span>
       </a>
       <nav>
-        <a class="nav-item active" href="#accounts"><span class="nav-icon">◉</span>容量一覧</a>
-        <a class="nav-item" href="#summary"><span class="nav-icon">▦</span>サマリー</a>
-        <a class="nav-item" href="#activity"><span class="nav-icon">↗</span>接続状況</a>
+        <a class="nav-item active" href="#accounts"><span class="nav-icon">◉</span><span data-i18n="nav.capacity">容量一覧</span></a>
+        <a class="nav-item" href="#summary"><span class="nav-icon">▦</span><span data-i18n="nav.summary">サマリー</span></a>
+        <a class="nav-item" href="#activity"><span class="nav-icon">↗</span><span data-i18n="nav.connections">接続状況</span></a>
       </nav>
-      <div class="provider-legend" aria-label="対応AIサービス">
-        <span class="legend-mark codex" data-provider-mark="codex"><img src="/assets/providers/openai.svg" alt="OpenAI"></span>
-        <span class="legend-mark claude" data-provider-mark="claude"><img src="/assets/providers/claude.svg" alt="Claude"></span>
-        <span class="legend-mark grok" data-provider-mark="grok"><img src="/assets/providers/grok.svg" alt="Grok"></span>
+      <div class="provider-legend" aria-label="対応AIサービス" data-i18n-aria="nav.supported" hidden>
+        <span class="legend-mark codex" data-provider-mark="codex" hidden><img src="/assets/providers/openai.svg" alt="OpenAI"></span>
+        <span class="legend-mark claude" data-provider-mark="claude" hidden><img src="/assets/providers/claude.svg" alt="Claude"></span>
+        <span class="legend-mark grok" data-provider-mark="grok" hidden><img src="/assets/providers/grok.svg" alt="Grok"></span>
       </div>
-      <div class="sidebar-note"><span class="secure-dot"></span>認証情報は端末内に保持</div>
+      <div class="sidebar-note"><span class="secure-dot"></span><span data-i18n="security.local">認証情報は端末内に保持</span></div>
     </aside>
 
     <main>
       <header class="topbar">
-        <a class="mobile-brand" href="#accounts"><span class="brand-mark"><i></i><i></i><i></i></span><span class="mobile-brand-name">Capacity Atlas</span></a>
-        <div class="page-title"><b>アカウント容量</b><span id="lastSyncTop">同期を確認中</span></div>
+        <a class="mobile-brand" href="#accounts" aria-label="Capacity Atlas ホーム" data-i18n-aria="nav.home"><span class="brand-mark"><i></i><i></i><i></i></span><span class="mobile-brand-name">Capacity Atlas</span></a>
+        <div class="page-title"><b data-i18n="page.capacity">アカウント容量</b><span id="lastSyncTop" data-i18n="sync.checking">同期を確認中</span></div>
         <div class="topbar-actions">
-          <div class="connection" id="connectionState"><span></span><b>接続を確認中</b></div>
-          <button class="add-account-button" id="addAccountButton" type="button" aria-label="アカウントを追加"><span aria-hidden="true">＋</span><span class="add-account-label">アカウントを追加</span></button>
-          <button class="refresh-button" id="refreshButton" type="button" aria-label="更新"><span class="refresh-icon" aria-hidden="true">↻</span><span class="refresh-label">更新</span></button>
+          <div class="connection" id="connectionState"><span></span><b id="connectionStateLabel" data-i18n="connection.checking">接続を確認中</b></div>
+          <button class="language-button" id="languageButton" type="button" aria-label="Switch to English"><span>EN</span></button>
+          <button class="add-account-button" id="addAccountButton" type="button" aria-label="アカウントを追加" data-i18n-aria="account.add"><span aria-hidden="true">＋</span><span class="add-account-label" data-i18n="account.add">アカウントを追加</span></button>
+          <button class="refresh-button" id="refreshButton" type="button" aria-label="更新" data-i18n-aria="refresh.action"><span class="refresh-icon" aria-hidden="true">↻</span><span class="refresh-label" data-i18n="refresh.action">更新</span></button>
         </div>
       </header>
 
       <div class="content">
         <section class="accounts-section" id="accounts">
           <div class="section-heading dashboard-heading">
-            <div><p class="eyebrow">LIVE CAPACITY</p><h1>全アカウント</h1><p class="section-copy">残容量、リセット時刻、認証状態をリアルタイムで確認</p></div>
+            <div><p class="eyebrow" data-i18n="section.liveCapacity">LIVE CAPACITY</p><h1 data-i18n="account.all">全アカウント</h1><p class="section-copy" data-i18n="account.description">残容量、リセット時刻、認証状態をリアルタイムで確認</p></div>
             <div class="heading-tools">
-              <div class="refresh-status" id="autoUpdateState"><span class="pulse"></span><b id="nextRefresh">—</b><small id="nextRefreshLabel">秒後に更新</small></div>
-              <div class="filters" id="filters" aria-label="プロバイダーフィルター">
-                <button class="filter active" data-provider="all" type="button">すべて</button>
-                <button class="filter provider-filter codex" data-provider="codex" type="button"><img src="/assets/providers/openai.svg" alt="">OpenAI</button>
-                <button class="filter provider-filter claude" data-provider="claude" type="button"><img src="/assets/providers/claude.svg" alt="">Claude</button>
-                <button class="filter provider-filter grok" data-provider="grok" type="button"><img src="/assets/providers/grok.svg" alt="">Grok</button>
+              <div class="refresh-status" id="autoUpdateState"><span class="pulse"></span><b id="nextRefresh">—</b><small id="nextRefreshLabel" data-i18n="refresh.seconds">秒後に更新</small></div>
+              <div class="filters" id="filters" aria-label="プロバイダーフィルター" data-i18n-aria="filter.label" hidden>
+                <button class="filter active" data-provider="all" type="button" data-i18n="filter.all">すべて</button>
+                <button class="filter provider-filter codex" data-provider="codex" type="button" hidden><img src="/assets/providers/openai.svg" alt="">OpenAI</button>
+                <button class="filter provider-filter claude" data-provider="claude" type="button" hidden><img src="/assets/providers/claude.svg" alt="">Claude</button>
+                <button class="filter provider-filter grok" data-provider="grok" type="button" hidden><img src="/assets/providers/grok.svg" alt="">Grok</button>
               </div>
             </div>
           </div>
@@ -58,53 +60,53 @@
         </section>
 
         <section class="summary-section" id="summary">
-          <div class="section-label">サマリー</div>
-          <div class="summary-grid" aria-label="サマリー">
-            <article class="metric-card"><span>接続アカウント</span><strong id="totalAccounts">—</strong><small id="providerCount">—サービス</small></article>
-            <article class="metric-card"><span>平均残容量</span><strong id="averageRemaining">—</strong><small>取得可能な利用枠の平均</small></article>
-            <article class="metric-card attention"><span>確認が必要</span><strong id="attentionCount">—</strong><small>容量低下または再認証</small></article>
-            <article class="metric-card"><span>最終同期</span><strong class="time-value" id="lastSync">—</strong><small id="dataMode">ローカル収集を確認中</small></article>
+          <div class="section-label" data-i18n="summary.label">サマリー</div>
+          <div class="summary-grid" aria-label="サマリー" data-i18n-aria="summary.label">
+            <article class="metric-card"><span data-i18n="summary.accounts">接続アカウント</span><strong id="totalAccounts">—</strong><small id="providerCount" data-i18n="summary.providerPlaceholder">—サービス</small></article>
+            <article class="metric-card"><span data-i18n="summary.average">平均残容量</span><strong id="averageRemaining">—</strong><small data-i18n="summary.averageDetail">取得可能な利用枠の平均</small></article>
+            <article class="metric-card attention"><span data-i18n="summary.attention">確認が必要</span><strong id="attentionCount">—</strong><small data-i18n="summary.attentionDetail">容量低下または再認証</small></article>
+            <article class="metric-card"><span data-i18n="summary.lastSync">最終同期</span><strong class="time-value" id="lastSync">—</strong><small id="dataMode" data-i18n="summary.dataChecking">ローカル収集を確認中</small></article>
           </div>
         </section>
 
         <section class="activity-section" id="activity">
           <div class="section-heading compact-heading">
-            <div><p class="eyebrow">CONNECTIONS</p><h2>接続状況</h2></div>
-            <span class="source-note">認証情報はWeb画面やクラウドへ送信されません</span>
+            <div><p class="eyebrow" data-i18n="section.connections">CONNECTIONS</p><h2 data-i18n="nav.connections">接続状況</h2></div>
+            <span class="source-note" data-i18n="security.cloud">認証情報はWeb画面やクラウドへ送信されません</span>
           </div>
-          <div class="table-wrap"><table><thead><tr><th>サービス</th><th>アカウント</th><th>取得元</th><th>最終更新</th><th>状態</th></tr></thead><tbody id="statusTable"></tbody></table></div>
+          <div class="table-wrap"><table><thead><tr><th data-i18n="table.service">サービス</th><th data-i18n="table.account">アカウント</th><th data-i18n="table.source">取得元</th><th data-i18n="table.updated">最終更新</th><th data-i18n="table.status">状態</th></tr></thead><tbody id="statusTable"></tbody></table></div>
         </section>
       </div>
     </main>
   </div>
 
   <dialog class="setup-dialog" id="accountSetupDialog" aria-labelledby="setupDialogTitle">
-    <div class="dialog-head"><div><p class="eyebrow">アカウント設定</p><h2 id="setupDialogTitle">アカウントを追加</h2></div><button class="dialog-close" id="closeSetupDialog" type="button" aria-label="閉じる">×</button></div>
-    <p class="dialog-copy">追加するAIサービスを選んで接続してください。パスワード・トークン・CookieはCapacity AtlasのWeb画面やVercelへ送信しません。</p>
-    <div class="connector-banner" id="connectorBanner"><span></span><div><b id="connectorTitle">Connectorを確認中</b><small id="connectorDetail">このPCの安全な認証機能へ接続しています</small></div></div>
+    <div class="dialog-head"><div><p class="eyebrow" data-i18n="setup.label">アカウント設定</p><h2 id="setupDialogTitle" data-i18n="setup.add">アカウントを追加</h2></div><button class="dialog-close" id="closeSetupDialog" type="button" aria-label="閉じる" data-i18n-aria="setup.close">×</button></div>
+    <p class="dialog-copy" data-i18n="setup.description">追加するAIサービスを選んで接続してください。パスワード・トークン・CookieはCapacity AtlasのWeb画面やVercelへ送信しません。</p>
+    <div class="connector-banner" id="connectorBanner"><span></span><div><b id="connectorTitle" data-i18n="connector.checking">Connectorを確認中</b><small id="connectorDetail" data-i18n="connector.connecting">このPCの安全な認証機能へ接続しています</small></div></div>
     <div class="connector-install-actions" id="connectorInstallActions" hidden>
-      <a class="connector-download" href="https://github.com/meem0601/capacity-atlas/releases/latest/download/Capacity-Atlas-Connector-macOS-arm64.zip"><b>macOS版をダウンロード</b><small>Apple Silicon</small></a>
-      <a class="connector-download" href="https://github.com/meem0601/capacity-atlas/releases/latest/download/Capacity-Atlas-Connector-Windows-x64.zip"><b>Windows版をダウンロード</b><small>Windows x64</small></a>
-      <p>ダウンロード後に解凍してConnectorを起動し、「接続を再確認」を押してください。</p>
+      <a class="connector-download" href="https://github.com/meem0601/capacity-atlas/releases/latest/download/Capacity-Atlas-Connector-macOS-arm64.zip"><b data-i18n="setup.downloadMac">macOS版をダウンロード</b><small>Apple Silicon</small></a>
+      <a class="connector-download" href="https://github.com/meem0601/capacity-atlas/releases/latest/download/Capacity-Atlas-Connector-Windows-x64.zip"><b data-i18n="setup.downloadWindows">Windows版をダウンロード</b><small>Windows x64</small></a>
+      <p data-i18n="setup.downloadHelp">ダウンロード後に解凍してConnectorを起動し、「接続を再確認」を押してください。</p>
     </div>
-    <div class="provider-choices" id="providerChoices" role="tablist" aria-label="追加するサービス">
+    <div class="provider-choices" id="providerChoices" role="tablist" aria-label="追加するサービス" data-i18n-aria="setup.serviceLabel">
       <button class="provider-choice active" id="setupTabCodex" data-setup-provider="codex" type="button" role="tab" aria-controls="setupPanel" aria-selected="true" tabindex="0"><img src="/assets/providers/openai.svg" alt="">GPT / Codex</button>
       <button class="provider-choice" id="setupTabClaude" data-setup-provider="claude" type="button" role="tab" aria-controls="setupPanel" aria-selected="false" tabindex="-1"><img src="/assets/providers/claude.svg" alt="">Claude</button>
       <button class="provider-choice" id="setupTabGrok" data-setup-provider="grok" type="button" role="tab" aria-controls="setupPanel" aria-selected="false" tabindex="-1"><img src="/assets/providers/grok.svg" alt="">Grok</button>
     </div>
-    <section class="setup-panel" id="setupPanel" role="tabpanel" aria-labelledby="setupTabCodex" aria-live="polite"><div class="setup-title-row"><h3 id="setupProviderTitle">GPT / Codex</h3><span id="setupCapability">複数アカウント対応</span></div><ol id="setupSteps"></ol><pre class="login-output" id="loginOutput" hidden></pre><p class="setup-note" id="setupNote"></p></section>
-    <div class="dialog-actions"><button class="secondary-button" id="cancelSetupDialog" type="button">閉じる</button><button class="primary-button" id="connectAccountButton" type="button">OpenAIへ接続</button></div>
+    <section class="setup-panel" id="setupPanel" role="tabpanel" aria-labelledby="setupTabCodex" aria-live="polite"><div class="setup-title-row"><h3 id="setupProviderTitle">GPT / Codex</h3><span id="setupCapability" data-i18n="setup.multiple">複数アカウント対応</span></div><ol id="setupSteps"></ol><pre class="login-output" id="loginOutput" hidden></pre><p class="setup-note" id="setupNote"></p></section>
+    <div class="dialog-actions"><button class="secondary-button" id="cancelSetupDialog" type="button" data-i18n="setup.close">閉じる</button><button class="primary-button" id="connectAccountButton" type="button" data-i18n="setup.connectOpenAI">OpenAIへ接続</button></div>
   </dialog>
 
   <dialog class="disconnect-dialog" id="disconnectDialog" aria-labelledby="disconnectDialogTitle">
-    <div class="dialog-head"><div><p class="eyebrow">接続管理</p><h2 id="disconnectDialogTitle">この接続を解除しますか？</h2></div><button class="dialog-close" id="closeDisconnectDialog" type="button" aria-label="閉じる">×</button></div>
+    <div class="dialog-head"><div><p class="eyebrow" data-i18n="disconnect.label">接続管理</p><h2 id="disconnectDialogTitle" data-i18n="disconnect.title">この接続を解除しますか？</h2></div><button class="dialog-close" id="closeDisconnectDialog" type="button" aria-label="閉じる" data-i18n-aria="setup.close">×</button></div>
     <div class="disconnect-account" id="disconnectAccountSummary"></div>
-    <p class="dialog-copy" id="disconnectDialogCopy">Capacity Atlasで追加した接続だけを削除します。</p>
-    <div class="safe-disconnect-note"><span>✓</span><p><b>標準CLI認証は維持されます</b><small>Mac全体のCodex・Claude・Grok認証は削除しません。</small></p></div>
-    <div class="dialog-actions"><button class="secondary-button" id="cancelDisconnectButton" type="button">キャンセル</button><button class="danger-button" id="confirmDisconnectButton" type="button">接続解除</button></div>
+    <p class="dialog-copy" id="disconnectDialogCopy" data-i18n="disconnect.copy">Capacity Atlasで追加した接続だけを削除します。</p>
+    <div class="safe-disconnect-note"><span>✓</span><p><b data-i18n="disconnect.cliSafe">標準CLI認証は維持されます</b><small data-i18n="disconnect.cliSafeDetail">Mac全体のCodex・Claude・Grok認証は削除しません。</small></p></div>
+    <div class="dialog-actions"><button class="secondary-button" id="cancelDisconnectButton" type="button" data-i18n="disconnect.cancel">キャンセル</button><button class="danger-button" id="confirmDisconnectButton" type="button" data-i18n="disconnect.action">接続解除</button></div>
   </dialog>
 
   <div class="toast" id="toast" role="status"></div>
-  <script type="module" src="/client.js?v=0.7.5"></script>
+  <script type="module" src="/client.js?v=0.8.0"></script>
 </body>
 </html>

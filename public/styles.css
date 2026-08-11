@@ -18,7 +18,9 @@
 }
 
 * { box-sizing: border-box; }
+html[data-locale-pending="true"] body { visibility: hidden; }
 html { scroll-behavior: smooth; }
+.filters[hidden], .provider-filter[hidden], .provider-legend[hidden], [data-provider-mark][hidden] { display: none !important; }
 body {
   margin: 0;
   min-width: 320px;
@@ -120,11 +122,23 @@ main { grid-column: 2; min-width: 0; }
 .connection > span { width: 7px; height: 7px; border-radius: 50%; background: var(--amber); }
 .connection.live > span { background: var(--green); box-shadow: 0 0 10px #50d8a177; }
 .connection.demo > span { background: var(--amber); }
-.add-account-button, .refresh-button, .primary-button, .secondary-button {
+.language-button, .add-account-button, .refresh-button, .primary-button, .secondary-button {
   min-height: 44px;
   border-radius: 9px;
   font-weight: 700;
   cursor: pointer;
+}
+.language-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  background: #12151b;
+  color: var(--soft);
+  font-size: 11px;
+  letter-spacing: .06em;
 }
 .add-account-button {
   display: flex;
@@ -359,7 +373,7 @@ tbody tr:last-child td { border-bottom: 0; }
   .topbar-actions { min-width: 0; margin-left: auto; flex: 0 0 auto; }
   .topbar-actions { gap: 7px; }
   .add-account-button { width: auto; min-height: 44px; padding: 0 10px; justify-content: center; gap: 4px; font-size: 11px; white-space: nowrap; }
-  .refresh-button { flex: 0 0 44px; width: 44px; min-height: 44px; padding: 0; justify-content: center; }
+  .language-button, .refresh-button { flex: 0 0 44px; width: 44px; min-height: 44px; padding: 0; justify-content: center; }
   .refresh-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .add-account-button > span:first-child { font-size: 18px; }
   .account-grid { grid-template-columns: minmax(0, 1fr); }
@@ -384,8 +398,12 @@ tbody tr:last-child td { border-bottom: 0; }
   .dialog-actions { position: sticky; bottom: -24px; margin: 16px -24px -24px; padding: 13px 24px; background: #11141af5; }
   .dialog-actions button { flex: 1; }
 }
+@media (max-width: 480px) {
+  .add-account-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .add-account-button { flex: 0 0 44px; width: 44px; padding: 0; }
+}
 @media (max-width: 360px) {
-  .mobile-brand-name, .add-account-label { display: none; }
+  .mobile-brand-name { display: none; }
   .mobile-brand { width: 24px; gap: 0; overflow: hidden; }
   .add-account-button { flex: 0 0 44px; width: 44px; padding: 0; }
   .filters { overflow-x: visible; }

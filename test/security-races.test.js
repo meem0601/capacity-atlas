@@ -386,7 +386,9 @@ test("a timed-out Claude verifier OS process is gone before the session fails", 
     root: join(directory, "state"),
     helperManager: { ensure: async () => helper },
     spawn: () => child,
-    authenticationTimeoutMs: 500
+    // Allow the helper process to be scheduled even when CI runs many jobs in parallel.
+    // The unit test above separately verifies the exact timeout and SIGKILL options.
+    authenticationTimeoutMs: 2_000
   });
   const session = await manager.start("claude");
   for (let attempt = 0; attempt < 100 && child.listenerCount("close") === 0; attempt += 1) await tick();
@@ -394,7 +396,7 @@ test("a timed-out Claude verifier OS process is gone before the session fails", 
   child.emit("close", 0);
 
   let verifierPid;
-  for (let attempt = 0; attempt < 100; attempt += 1) {
+  for (let attempt = 0; attempt < 400; attempt += 1) {
     try { verifierPid = Number(await readFile(pidFile, "utf8")); } catch {}
     if (verifierPid && manager.get(session.id)?.status === "failed") break;
     await new Promise(resolve => setTimeout(resolve, 10));
