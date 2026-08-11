@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import { once } from "node:events";
 import { createServer, safePublicPath } from "../server.js";
 
+const inertAccountManager = () => ({ shutdown: async () => {} });
+
 test("static paths fail closed instead of rewriting traversal outside the public root", () => {
   for (const pathname of ["/../package.json", "/%2e%2e/package.json", "/..\\package.json", "/%00index.html"]) {
     assert.throws(() => safePublicPath(pathname), /Not found/);
@@ -15,7 +17,7 @@ test("GET /api/status returns normalized account data", async (t) => {
     collectedAt: "2026-08-08T07:00:00Z",
     accounts: [{ id: "1", provider: "codex", status: "healthy", windows: [] }]
   });
-  const server = createServer({ collect, refreshMs: 60_000 });
+  const server = createServer({ collect, refreshMs: 60_000, accountManager: inertAccountManager() });
   server.listen(0, "127.0.0.1");
   await once(server, "listening");
   t.after(() => server.close());
@@ -29,7 +31,7 @@ test("GET /api/status returns normalized account data", async (t) => {
 });
 
 test("unknown API routes return JSON 404", async (t) => {
-  const server = createServer({ collect: async () => ({ accounts: [] }) });
+  const server = createServer({ collect: async () => ({ accounts: [] }), accountManager: inertAccountManager() });
   server.listen(0, "127.0.0.1");
   await once(server, "listening");
   t.after(() => server.close());
@@ -40,7 +42,7 @@ test("unknown API routes return JSON 404", async (t) => {
 });
 
 test("Connector accepts only allowlisted web origins and private-network preflight", async (t) => {
-  const server = createServer({ collect: async () => ({ accounts: [] }) });
+  const server = createServer({ collect: async () => ({ accounts: [] }), accountManager: inertAccountManager() });
   server.listen(0, "127.0.0.1");
   await once(server, "listening");
   t.after(() => server.close());
@@ -58,7 +60,7 @@ test("Connector accepts only allowlisted web origins and private-network preflig
 });
 
 test("Connector rejects a browser origin from an unrelated localhost port", async (t) => {
-  const server = createServer({ collect: async () => ({ accounts: [] }) });
+  const server = createServer({ collect: async () => ({ accounts: [] }), accountManager: inertAccountManager() });
   server.listen(0, "127.0.0.1");
   await once(server, "listening");
   t.after(() => server.close());
@@ -75,6 +77,7 @@ test("Connector rejects a browser origin from an unrelated localhost port", asyn
 test("Connector capability token protects account and quota APIs while health stays public", async (t) => {
   const server = createServer({
     collect: async () => ({ accounts: [] }),
+    accountManager: inertAccountManager(),
     apiToken: "test-capability-token"
   });
   server.listen(0, "127.0.0.1");
