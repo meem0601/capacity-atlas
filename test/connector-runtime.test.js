@@ -6,6 +6,7 @@ import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { once } from "node:events";
+import { fileURLToPath } from "node:url";
 
 async function freePort() {
   const server = createServer();
@@ -31,7 +32,7 @@ test("production entry writes protected runtime metadata and shuts down through 
   const runtimePath = join(directory, "runtime.json");
   const port = await freePort();
   const token = "runtime-test-token_12345678901234567890";
-  const child = spawn(process.execPath, [new URL("../connector-entry.js", import.meta.url).pathname], {
+  const child = spawn(process.execPath, [fileURLToPath(new URL("../connector-entry.js", import.meta.url))], {
     env: {
       ...process.env,
       PORT: String(port),

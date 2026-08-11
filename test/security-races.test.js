@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
-import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { access, chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { AccountManager, sanitizeLoginOutput } from "../lib/account-manager.js";
@@ -35,7 +35,7 @@ test("Connector capability values are stripped from OAuth child environments", a
     await manager.start("codex");
     assert.equal(spawnedEnvironment.CAPACITY_ATLAS_TOKEN, undefined);
     assert.equal(spawnedEnvironment.CAPACITY_ATLAS_RUNTIME_PATH, undefined);
-    assert.equal(spawnedEnvironment.CODEX_HOME.includes("/tmp/capacity-atlas-child-env/profiles/codex/"), true);
+    assert.equal(spawnedEnvironment.CODEX_HOME.replaceAll("\\", "/").includes("/tmp/capacity-atlas-child-env/profiles/codex/"), true);
   } finally {
     if (previousToken === undefined) delete process.env.CAPACITY_ATLAS_TOKEN;
     else process.env.CAPACITY_ATLAS_TOKEN = previousToken;
@@ -227,6 +227,95 @@ test("failed isolated-profile cleanup is retained and retried instead of forgott
   await new Promise(resolve => setTimeout(resolve, 35));
   assert.ok(removals >= 2);
   assert.equal(manager.get(session.id)?.status, "failed");
+});
+
+test("shutdown persists an undeleted isolated OAuth profile for next-start recovery", async () => {
+  const child = fakeChild();
+  const root = "/tmp/capacity-atlas-persist-cleanup";
+  let registry = { version: 1, accounts: [], pendingCleanup: [] };
+  const manager = new AccountManager({
+    root,
+    mkdir: async () => {},
+    access: async () => { throw Object.assign(new Error("missing"), { code: "ENOENT" }); },
+    readFile: async path => path.endsWith("accounts.json")
+      ? JSON.stringify(registry)
+      : JSON.stringify({ version: 1, providers: {} }),
+    writeFile: async (path, value) => { if (path.endsWith("accounts.json")) registry = JSON.parse(value); },
+    rm: async path => { if (path.includes("profiles")) throw new Error("busy"); },
+    spawn: () => child,
+    sessionRetentionMs: 10
+  });
+  const session = await manager.start("codex");
+  const profileHome = join(root, "profiles", "codex", session.id);
+  child.emit("close", 1);
+  await tick();
+  await manager.shutdown();
+  assert.equal(registry.pendingCleanup.some(item => item.path === profileHome), true);
+});
+
+test("shutdown fails closed when an undeleted OAuth profile cannot be persisted", async () => {
+  const child = fakeChild();
+  const manager = new AccountManager({
+    root: "/tmp/capacity-atlas-persist-failure",
+    mkdir: async () => {},
+    access: async () => { throw Object.assign(new Error("missing"), { code: "ENOENT" }); },
+    readFile: async path => path.endsWith("accounts.json")
+      ? JSON.stringify({ version: 1, accounts: [], pendingCleanup: [] })
+      : JSON.stringify({ version: 1, providers: {} }),
+    writeFile: async () => { throw new Error("disk full"); },
+    rm: async path => { if (path.includes("profiles")) throw new Error("busy"); },
+    spawn: () => child
+  });
+  await manager.start("codex");
+  child.emit("close", 1);
+  await tick();
+  await assert.rejects(() => manager.shutdown(), /cleanup|削除|保存|disk full/i);
+});
+
+test("homes retries persisted orphan-profile cleanup before exposing accounts", async () => {
+  const root = "/tmp/capacity-atlas-recover-cleanup";
+  const orphan = join(root, "profiles", "codex", "orphan-id");
+  let registry = { version: 1, accounts: [], pendingCleanup: [{ path: orphan }] };
+  const removed = [];
+  const manager = new AccountManager({
+    root,
+    mkdir: async () => {},
+    readFile: async path => path.endsWith("provider-metadata.json")
+      ? JSON.stringify({ version: 1, providers: {} })
+      : JSON.stringify(registry),
+    writeFile: async (path, value) => { if (path.endsWith("accounts.json")) registry = JSON.parse(value); },
+    rm: async path => { removed.push(path); }
+  });
+  await manager.homes();
+  assert.deepEqual(removed, [orphan]);
+  assert.deepEqual(registry.pendingCleanup, []);
+});
+
+test("persisted orphan cleanup survives a Manager restart on disk", async t => {
+  const root = await mkdtemp(join(tmpdir(), "capacity-atlas-persisted-orphan-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const child = fakeChild();
+  const first = new AccountManager({
+    root,
+    spawn: () => child,
+    rm: async path => {
+      if (path.includes(`${join(root, "profiles")}`)) throw new Error("busy");
+      return rm(path, { recursive: true, force: true });
+    }
+  });
+  const session = await first.start("codex");
+  const profileHome = join(root, "profiles", "codex", session.id);
+  child.emit("close", 1);
+  await tick();
+  await first.shutdown();
+  const persisted = JSON.parse(await readFile(join(root, "accounts.json"), "utf8"));
+  assert.equal(persisted.pendingCleanup.some(item => item.path === profileHome), true);
+
+  const second = new AccountManager({ root });
+  await second.homes();
+  await assert.rejects(() => access(profileHome), error => error?.code === "ENOENT");
+  const recovered = JSON.parse(await readFile(join(root, "accounts.json"), "utf8"));
+  assert.deepEqual(recovered.pendingCleanup, []);
 });
 
 test("authentication verification requests a hard child-process timeout", async () => {
