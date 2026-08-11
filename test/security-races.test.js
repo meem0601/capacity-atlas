@@ -231,7 +231,7 @@ test("failed isolated-profile cleanup is retained and retried instead of forgott
 
 test("shutdown persists an undeleted isolated OAuth profile for next-start recovery", async () => {
   const child = fakeChild();
-  const root = "/tmp/capacity-atlas-persist-cleanup";
+  const root = join(tmpdir(), "capacity-atlas-persist-cleanup");
   let registry = { version: 1, accounts: [], pendingCleanup: [] };
   const manager = new AccountManager({
     root,
@@ -256,7 +256,7 @@ test("shutdown persists an undeleted isolated OAuth profile for next-start recov
 test("shutdown fails closed when an undeleted OAuth profile cannot be persisted", async () => {
   const child = fakeChild();
   const manager = new AccountManager({
-    root: "/tmp/capacity-atlas-persist-failure",
+    root: join(tmpdir(), "capacity-atlas-persist-failure"),
     mkdir: async () => {},
     access: async () => { throw Object.assign(new Error("missing"), { code: "ENOENT" }); },
     readFile: async path => path.endsWith("accounts.json")
@@ -273,7 +273,7 @@ test("shutdown fails closed when an undeleted OAuth profile cannot be persisted"
 });
 
 test("homes retries persisted orphan-profile cleanup before exposing accounts", async () => {
-  const root = "/tmp/capacity-atlas-recover-cleanup";
+  const root = join(tmpdir(), "capacity-atlas-recover-cleanup");
   const orphan = join(root, "profiles", "codex", "orphan-id");
   let registry = { version: 1, accounts: [], pendingCleanup: [{ path: orphan }] };
   const removed = [];
