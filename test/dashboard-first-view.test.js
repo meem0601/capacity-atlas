@@ -26,6 +26,25 @@ test("first-time users can download the Connector instead of being sent to a dea
   assert.doesNotMatch(client, /window\.location\.assign\(connector\.url\)/);
 });
 
+test("download CTA is visible in the first view and keeps GitHub Release as the artifact source", async () => {
+  const [html, css, i18n] = await Promise.all([
+    source("index.html"),
+    source("styles.css"),
+    source("i18n.js")
+  ]);
+  assert.match(html, /id="downloadConnector"/);
+  assert.ok(html.indexOf('id="downloadConnector"') < html.indexOf('id="accountGrid"'));
+  assert.match(html, /class="download-link download-mac"[^>]*releases\/latest\/download\/Capacity-Atlas-Connector-macOS-arm64\.zip/);
+  assert.match(html, /class="download-link download-windows"[^>]*releases\/latest\/download\/Capacity-Atlas-Connector-Windows-x64\.zip/);
+  assert.match(html, /class="download-github"[^>]*href="https:\/\/github\.com\/meem0601\/capacity-atlas"/);
+  assert.doesNotMatch(html, /id="downloadConnector"[^>]*hidden/);
+  assert.match(i18n, /"download\.title": "Connectorをダウンロード"/);
+  assert.match(i18n, /"download\.title": "Download the Connector"/);
+  assert.match(css, /\.download-strip\s*\{/);
+  assert.match(css, /@media \(max-width: 580px\)[\s\S]*?\.download-strip/);
+  assert.match(css, /@media \(max-width: 580px\)[\s\S]*?\.download-actions \{ display: grid; grid-template-columns: 1fr; \}/);
+});
+
 test("mobile layout keeps primary actions and content inside the viewport", async () => {
   const [html, css] = await Promise.all([source("index.html"), source("styles.css")]);
   assert.match(css, /main \{ min-width: 0; width: 100%; max-width: 100vw; overflow-x: hidden; \}/);
