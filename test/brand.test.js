@@ -20,3 +20,13 @@ test("user-facing product name is Capacity Atlas everywhere", () => {
     assert.doesNotMatch(source, /QuotaDeck|quota-deck/);
   }
 });
+
+test("public documentation labels synthetic screenshot accounts as demo data", () => {
+  const readme = read("../README.md");
+  const readmeEnglish = read("../README.en.md");
+  const screenshotScript = read("../scripts/readme-screenshot.mjs");
+
+  assert.match(readme, /デモデータ/);
+  assert.match(readmeEnglish, /demo data/i);
+  assert.match(screenshotScript, /DEMO DATA/);
+});

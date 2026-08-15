@@ -144,6 +144,31 @@ try {
     const diagnostic = await send("Runtime.evaluate", { expression: `({body: document.body.innerText.slice(0, 1000), href: location.href})`, returnByValue: true });
     throw new Error(`Expected 3 demo cards, received ${metrics.result.value.cards}; ${JSON.stringify({ ...diagnostic.result.value, consoleErrors })}`);
   }
+  await send("Runtime.evaluate", {
+    expression: `(() => {
+      const badge = document.createElement("div");
+      badge.id = "readmeDemoDataBadge";
+      badge.textContent = "DEMO DATA";
+      badge.setAttribute("aria-label", "Demo data");
+      Object.assign(badge.style, {
+        position: "fixed",
+        top: "78px",
+        right: "32px",
+        zIndex: "9999",
+        padding: "8px 12px",
+        border: "1px solid rgba(255,255,255,.24)",
+        borderRadius: "999px",
+        background: "rgba(9,11,15,.92)",
+        color: "#ffffff",
+        font: "700 12px/1 system-ui, sans-serif",
+        letterSpacing: ".12em",
+        boxShadow: "0 8px 24px rgba(0,0,0,.35)"
+      });
+      document.body.appendChild(badge);
+      return badge.textContent;
+    })()`,
+    returnByValue: true
+  });
   const shot = await send("Page.captureScreenshot", {
     format: "png",
     captureBeyondViewport: true,
