@@ -2,13 +2,17 @@
 
 [日本語](README.md) | **English**
 
-**All your AI capacity in one dashboard.**
+**Multiple AI account limits in one dashboard.**
 
-Capacity Atlas is a local-first, open-source dashboard for monitoring remaining capacity, reset times, and authentication status across multiple OpenAI Codex, Claude, and Grok accounts.
+Capacity Atlas is a free, local-first, open-source dashboard for monitoring Codex capacity on ChatGPT accounts, plus Claude and Grok capacity, reset times, and authentication status.
+
+It is designed for people who use multiple AI services or accounts and want to stop opening separate usage pages just to see what is still available. Support for additional services is planned.
 
 It does not switch accounts automatically, proxy prompts, or relay model traffic.
 
 ![Capacity Atlas dashboard](docs/assets/dashboard.png)
+
+*The screenshot uses demo data for product illustration. It contains no real account or credential information.*
 
 ## Download
 
@@ -18,7 +22,11 @@ No preinstalled Node.js runtime or provider CLI is required.
 - [Download for Windows x64](https://github.com/meem0601/capacity-atlas/releases/latest/download/Capacity-Atlas-Connector-Windows-x64.zip)
 - [View all releases](https://github.com/meem0601/capacity-atlas/releases)
 
-Launch the Connector, click **Add account**, and complete OAuth in your browser.
+Get started in three steps:
+
+1. Download and extract the Connector for your operating system.
+2. Launch the Connector.
+3. Click **Add account** in your browser and complete OAuth.
 
 ### First launch on macOS Apple Silicon
 

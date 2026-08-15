@@ -2,13 +2,17 @@
 
 **日本語** | [English](README.en.md)
 
-**すべてのAI容量を、ひとつの画面に。**
+**複数のAIアカウントの利用枠を、ひとつの画面で。**
 
-Capacity Atlasは、GPT / OpenAI Codex、Claude、Grokの残容量、リセット日時、認証状態を一画面で確認するローカルファーストのオープンソース管理ツールです。
+Capacity Atlasは、ChatGPTアカウントのCodex利用枠、Claude、Grokの残容量、リセット日時、認証状態を一画面で確認する、無料・ローカルファーストのオープンソース管理ツールです。
+
+複数のAIサービスやアカウントを使い分け、利用枠を確認するために各画面を開く手間を減らしたい方に向いています。対応サービスは順次拡大予定です。
 
 自動アカウント切替、プロンプト転送、モデル通信のリレーは行いません。
 
 ![Capacity Atlas dashboard](docs/assets/dashboard.png)
+
+*画面は機能説明用のデモデータです。実際のアカウント情報や認証情報は含みません。*
 
 ## Download
 
@@ -18,7 +22,11 @@ Node.jsや各社CLIの事前インストールは不要です。
 - [Windows x64版をダウンロード](https://github.com/meem0601/capacity-atlas/releases/latest/download/Capacity-Atlas-Connector-Windows-x64.zip)
 - [すべてのReleaseを見る](https://github.com/meem0601/capacity-atlas/releases)
 
-Connectorを起動し、ブラウザで「アカウントを追加」を押してOAuth認証するだけで利用できます。
+最短3ステップで利用できます。
+
+1. OSに合うConnectorをダウンロードして展開
+2. Connectorを起動
+3. ブラウザで「アカウントを追加」を押してOAuth認証
 
 ### macOS Apple Siliconでの初回起動
 
