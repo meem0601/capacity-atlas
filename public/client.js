@@ -1,8 +1,8 @@
-import { accountTone, deriveSummary, primaryQuota, visibleProviders } from "./model.js?v=0.8.0";
-import { loginOpenedLabel, setupGuide } from "./setup-model.js?v=0.8.0";
-import { connectorIsCompatible, createConnectorClient } from "./connector-client.js?v=0.8.0";
-import { parseBrowserLogin, parseDeviceLogin, stripTerminalFormatting } from "./login-output-model.js?v=0.8.0";
-import { applyTranslations, normalizeLocale, translate } from "./i18n.js?v=0.8.0";
+import { accountTone, deriveSummary, primaryQuota, visibleProviders } from "./model.js?v=0.9.0";
+import { loginOpenedLabel, setupGuide } from "./setup-model.js?v=0.9.0";
+import { connectorIsCompatible, createConnectorClient } from "./connector-client.js?v=0.9.0";
+import { parseBrowserLogin, parseDeviceLogin, stripTerminalFormatting } from "./login-output-model.js?v=0.9.0";
+import { applyTranslations, normalizeLocale, translate } from "./i18n.js?v=0.9.0";
 
 const connector = createConnectorClient();
 const LOCALE_KEY = "capacity-atlas-locale";

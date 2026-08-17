@@ -66,7 +66,9 @@ test("persisted English is protected from a Japanese first-paint flash", () => {
   const bootstrap = readFileSync(new URL("../public/locale-bootstrap.js", import.meta.url), "utf8");
   const client = readFileSync(new URL("../public/client.js", import.meta.url), "utf8");
   const styles = readFileSync(new URL("../public/styles.css", import.meta.url), "utf8");
-  assert.match(html, /<script src="\/locale-bootstrap\.js\?v=0\.8\.0"><\/script>/);
+  // バージョンは asset-versions.test.js が package.json と突き合わせる。
+  // ここで固定するとリリースのたびに無関係な失敗を生むので数字は見ない。
+  assert.match(html, /<script src="\/locale-bootstrap\.js\?v=[0-9.]+"><\/script>/);
   assert.ok(html.indexOf("locale-bootstrap.js") < html.indexOf("</head>"));
   assert.match(bootstrap, /capacity-atlas-locale/);
   assert.match(bootstrap, /localePending/);
