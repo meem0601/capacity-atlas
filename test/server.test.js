@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { once } from "node:events";
-import { createServer, safePublicPath } from "../server.js";
+import { createServer, mbsReturnUrl, safePublicPath } from "../server.js";
 
 const inertAccountManager = () => ({ shutdown: async () => {} });
 
@@ -28,6 +28,93 @@ test("GET /api/status returns normalized account data", async (t) => {
   assert.match(response.headers.get("cache-control"), /no-store/);
   const body = await response.json();
   assert.equal(body.accounts[0].provider, "codex");
+});
+
+test("MBS bridge redirects only to the exact allowlisted AI tools page", async (t) => {
+  const token = "mbs-capability-token-1234567890";
+  const server = createServer({
+    collect: async () => ({ accounts: [] }),
+    accountManager: inertAccountManager(),
+    apiToken: "full-capability-token-1234567890",
+    mbsReadToken: token
+  });
+  server.listen(0, "127.0.0.1");
+  await once(server, "listening");
+  t.after(() => server.close());
+  const { port } = server.address();
+  const base = `http://127.0.0.1:${port}`;
+
+  const accepted = await fetch(`${base}/mbs-connect?return=${encodeURIComponent("https://meem-business-system.vercel.app/data/ai-tools")}`, {
+    redirect: "manual"
+  });
+  assert.equal(accepted.status, 302);
+  assert.equal(
+    accepted.headers.get("location"),
+    `https://meem-business-system.vercel.app/data/ai-tools#capacity-atlas-token=${token}`
+  );
+  assert.equal(accepted.headers.get("referrer-policy"), "no-referrer");
+
+  const rejected = await fetch(`${base}/mbs-connect?return=${encodeURIComponent("https://evil.example/data/ai-tools")}`, {
+    redirect: "manual"
+  });
+  assert.equal(rejected.status, 400);
+});
+
+test("MBS bridge rejects invalid capability token formats", () => {
+  const target = "https://meem-business-system.vercel.app/data/ai-tools";
+  assert.equal(mbsReturnUrl(target, "short"), null);
+  assert.equal(mbsReturnUrl(target, "invalid+token+characters+123456"), null);
+});
+
+test("MBS production origin can read status with the capability token", async (t) => {
+  const token = "mbs-origin-capability-token";
+  const server = createServer({
+    collect: async () => ({ accounts: [] }),
+    accountManager: inertAccountManager(),
+    apiToken: "full-capability-token-1234567890",
+    mbsReadToken: token
+  });
+  server.listen(0, "127.0.0.1");
+  await once(server, "listening");
+  t.after(() => server.close());
+  const { port } = server.address();
+
+  const response = await fetch(`http://127.0.0.1:${port}/api/status`, {
+    headers: {
+      origin: "https://meem-business-system.vercel.app",
+      "x-capacity-atlas-token": token
+    }
+  });
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("access-control-allow-origin"), "https://meem-business-system.vercel.app");
+
+  const refreshed = await fetch(`http://127.0.0.1:${port}/api/refresh`, {
+    method: "POST",
+    headers: {
+      origin: "https://meem-business-system.vercel.app",
+      "x-capacity-atlas-token": token
+    }
+  });
+  assert.equal(refreshed.status, 200);
+
+  for (const [method, pathname] of [
+    ["POST", "/api/accounts"],
+    ["POST", "/api/shutdown"],
+    ["DELETE", "/api/login/arbitrary-session"]
+  ]) {
+    const rejected = await fetch(`http://127.0.0.1:${port}${pathname}`, {
+      method,
+      headers: {
+        origin: "https://meem-business-system.vercel.app",
+        "content-type": "application/json",
+        "x-capacity-atlas-token": token
+      },
+      body: method === "POST" && pathname === "/api/accounts"
+        ? JSON.stringify({ provider: "codex" })
+        : undefined
+    });
+    assert.equal(rejected.status, 401, `${method} ${pathname} must reject the MBS read token`);
+  }
 });
 
 test("unknown API routes return JSON 404", async (t) => {
