@@ -16,9 +16,10 @@ test("loginSpec isolates Codex and Grok while Claude uses its official ambient s
 
   const claude = loginSpec("claude", "/profiles/two");
   assert.deepEqual(claude.args, ["auth", "login", "--claudeai"]);
-  assert.deepEqual(claude.env, {});
-  assert.match(claude.credentialPath, /\.claude[\\/]\.credentials\.json$/);
-  assert.equal(claude.isolated, false);
+  // CLAUDE_CONFIG_DIR で分離しないと1台につき1アカウントしか認証できない
+  assert.deepEqual(claude.env, { CLAUDE_CONFIG_DIR: "/profiles/two" });
+  assert.match(claude.credentialPath, /profiles[\\/]two[\\/]\.credentials\.json$/);
+  assert.equal(claude.isolated, true);
 
   const grok = loginSpec("grok", "/profiles/three");
   assert.deepEqual(grok.args, ["login", "--oauth"]);
@@ -99,9 +100,40 @@ test("Claude OAuth completion is verified with the official auth status instead 
     await new Promise(resolve => setTimeout(resolve, 5));
   }
   assert.equal(manager.get(session.id).status, "completed");
-  const metadataWrite = writes.find(write => write.path.endsWith("provider-metadata.json"));
-  assert.equal(metadataWrite.value.providers.claude.email, "sales@example.com");
-  assert.equal(metadataWrite.value.providers.claude.plan, "max");
+
+  // 分離プロファイルとして登録される＝同じPCで複数のClaudeアカウントを持てる
+  const registryWrite = writes.find(write => write.path.endsWith("accounts.json"));
+  assert.equal(registryWrite.value.accounts.length, 1);
+  assert.equal(registryWrite.value.accounts[0].provider, "claude");
+  assert.match(registryWrite.value.accounts[0].home, /profiles[\\/]claude[\\/]/);
+
+  // provider 単位のメタデータは書かない（既定の ~/.claude のラベルを
+  // 最後に認証したアカウントのメールで上書きしてしまうため）
+  assert.equal(writes.some(write => write.path.endsWith("provider-metadata.json")), false);
+});
+
+test("Claude accounts authenticated on the same machine stay separate", async () => {
+  const manager = new AccountManager({
+    root: "/tmp/capacity-atlas-claude-multi-test",
+    readFile: async path => path.endsWith("provider-metadata.json")
+      ? '{"version":1,"providers":{}}'
+      : JSON.stringify({
+        version: 1,
+        accounts: [
+          { id: "aaa", provider: "claude", home: "/profiles/claude/aaa" },
+          { id: "bbb", provider: "claude", home: "/profiles/claude/bbb" }
+        ]
+      })
+  });
+
+  const homes = await manager.homes();
+  // 既定の ~/.claude ＋ 分離した2アカウント = 3件。既存ログインは消えない。
+  assert.equal(homes.claude.length, 3);
+  assert.equal(homes.claude[0].managed, false);
+  assert.deepEqual(
+    homes.claude.slice(1).map(entry => entry.connectionId),
+    ["aaa", "bbb"]
+  );
 });
 
 test("AccountManager labels managed profile homes without treating ambient CLI auth as removable", async () => {
