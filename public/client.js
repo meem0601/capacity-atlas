@@ -70,7 +70,11 @@ function localizedMessage(account) {
 function disconnectControl(account) {
   const managedCount = account.managedConnectionIds?.length || 0;
   if (!managedCount) return "";
-  const label = account.hasAmbientConnection ? t("disconnect.mergeAction") : t("disconnect.action");
+  // 条件も文言もダイアログ側(openDisconnectDialog)と揃える。
+  // count を渡さないと "{count}件の重複を整理" がそのまま画面に出る。
+  const label = account.hasAmbientConnection && managedCount > 1
+    ? t("disconnect.mergeAction", { count: managedCount })
+    : t("disconnect.action");
   return `<button class="disconnect-button" type="button" data-disconnect-account="${escapeHtml(account.id)}">${label}</button>`;
 }
 
