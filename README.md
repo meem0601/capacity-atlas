@@ -52,6 +52,7 @@ Get-FileHash .\Capacity-Atlas-Connector-Windows-x64.zip -Algorithm SHA256
 - macOS KeychainおよびWindows / Linuxの保護された認証ファイルに対応
 - 認証状態と、一時的な利用枠APIエラーを分離
 - ホストされたUIへトークン、Cookie、実利用枠を送信しない
+- MBS管理者画面から明示的に接続した場合だけ、同じブラウザタブへConnectorプロセス限りの**残容量取得・更新専用**トークンを引き渡し、MBS画面内で容量を直接表示。このトークンではアカウント追加・解除、ログイン取消、Connector停止は実行不可
 - OAuth待機は15分で自動終了し、画面を閉じた場合も子プロセスを回収
 
 ## 構成

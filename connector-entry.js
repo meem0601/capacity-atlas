@@ -6,13 +6,14 @@ import { dirname, join } from "node:path";
 import { AccountManager } from "./lib/account-manager.js";
 import { createServer } from "./server.js";
 
-const VERSION = "0.8.0";
+const VERSION = "0.8.1";
 const port = Number(process.env.PORT || 4174);
 const host = "127.0.0.1";
 const apiToken = process.env.CAPACITY_ATLAS_TOKEN || randomBytes(32).toString("base64url");
+const mbsReadToken = randomBytes(32).toString("base64url");
 const runtimePath = process.env.CAPACITY_ATLAS_RUNTIME_PATH || join(homedir(), ".capacity-atlas", "runtime.json");
 const accountManager = new AccountManager();
-const server = createServer({ accountManager, apiToken });
+const server = createServer({ accountManager, apiToken, mbsReadToken });
 let stopping = false;
 
 async function writeRuntime() {

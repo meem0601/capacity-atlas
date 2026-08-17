@@ -15,8 +15,28 @@ const TYPES = {
   ".svg": "image/svg+xml"
 };
 const ALLOWED_ORIGINS = new Set([
-  "https://capacity-atlas.vercel.app"
+  "https://capacity-atlas.vercel.app",
+  "https://meem-business-system.vercel.app",
+  "http://localhost:3000",
+  "http://127.0.0.1:3000"
 ]);
+const ALLOWED_MBS_RETURNS = new Set([
+  "https://meem-business-system.vercel.app/data/ai-tools",
+  "http://localhost:3000/data/ai-tools",
+  "http://127.0.0.1:3000/data/ai-tools"
+]);
+
+const CAPABILITY_TOKEN_PATTERN = /^[A-Za-z0-9_-]{20,256}$/;
+
+export function mbsReturnUrl(candidate, mbsReadToken) {
+  if (!CAPABILITY_TOKEN_PATTERN.test(mbsReadToken || "") || typeof candidate !== "string") return null;
+  let target;
+  try { target = new URL(candidate); } catch { return null; }
+  target.hash = "";
+  if (!ALLOWED_MBS_RETURNS.has(target.toString())) return null;
+  target.hash = `capacity-atlas-token=${encodeURIComponent(mbsReadToken)}`;
+  return target.toString();
+}
 
 function isAllowedOrigin(origin, requestHost) {
   if (!origin) return true;
@@ -98,7 +118,7 @@ export function safePublicPath(pathname) {
   return target;
 }
 
-export function createServer({ collect, refreshMs = 60_000, accountManager = new AccountManager(), apiToken = null } = {}) {
+export function createServer({ collect, refreshMs = 60_000, accountManager = new AccountManager(), apiToken = null, mbsReadToken = null } = {}) {
   const collectAccounts = collect || (async () => collectDirectProviders({ homes: await accountManager.homes() }));
   let snapshot = null;
   let collectedAtMs = 0;
@@ -129,6 +149,17 @@ export function createServer({ collect, refreshMs = 60_000, accountManager = new
   const server = http.createServer(async (request, response) => {
     const url = new URL(request.url || "/", "http://127.0.0.1");
     try {
+      if (request.method === "GET" && url.pathname === "/mbs-connect") {
+        const target = mbsReturnUrl(url.searchParams.get("return"), mbsReadToken);
+        if (!target) return json(request, response, mbsReadToken ? 400 : 503, { error: "MBS connection is unavailable" });
+        response.writeHead(302, {
+          location: target,
+          "cache-control": "no-store",
+          "referrer-policy": "no-referrer",
+          "x-content-type-options": "nosniff"
+        });
+        return response.end();
+      }
       if (url.pathname.startsWith("/api/") && request.headers.origin && !isAllowedOrigin(request.headers.origin, request.headers.host)) {
         return json(request, response, 403, { error: "Origin not allowed" });
       }
@@ -139,14 +170,21 @@ export function createServer({ collect, refreshMs = 60_000, accountManager = new
       if (request.method === "GET" && url.pathname === "/api/health") {
         return json(request, response, 200, {
           name: "Capacity Atlas Connector",
-          version: "0.8.0",
+          version: "0.8.1",
           ready: !isStopping,
           stopping: isStopping,
           codexBar: false,
           requiresToken: Boolean(apiToken)
         });
       }
-      if (url.pathname.startsWith("/api/") && !tokenMatches(request.headers["x-capacity-atlas-token"], apiToken)) {
+      const suppliedToken = request.headers["x-capacity-atlas-token"];
+      const readOnlyRoute = (request.method === "GET" && url.pathname === "/api/status")
+        || (request.method === "POST" && url.pathname === "/api/refresh");
+      const hasFullAccess = tokenMatches(suppliedToken, apiToken);
+      const hasMbsReadAccess = Boolean(mbsReadToken)
+        && readOnlyRoute
+        && tokenMatches(suppliedToken, mbsReadToken);
+      if (url.pathname.startsWith("/api/") && !hasFullAccess && !hasMbsReadAccess) {
         return json(request, response, 401, { error: "Connector authorization required" });
       }
       if (isStopping && !(request.method === "POST" && url.pathname === "/api/shutdown")) {
