@@ -6,7 +6,9 @@ import {
   needsRefresh,
   refreshClaudeToken,
   refreshGrokToken,
-  saveToKeychain
+  saveToFile,
+  saveToKeychain,
+  lockedByAnotherProcess
 } from "../lib/token-refresh.js";
 import { collectClaudeAccount, collectGrokAccount } from "../lib/direct-collector.js";
 
@@ -136,4 +138,56 @@ test("Keychainへの保存は追加ではなく上書きにする", async () => 
   assert.equal(calls[0].command, "/usr/bin/security");
   assert.ok(calls[0].args.includes("-U"), "-U が無いと同名項目が増え続ける");
   assert.equal(calls[0].args.at(-1), JSON.stringify({ a: 1 }));
+});
+
+// grok CLI は auth.json.lock に "pid:timestamp" を置いて書き込む。
+// ロックを無視して上書きすると、CLI が書いた認証情報を潰しうる。
+test("他プロセスがロックを持っている間は書き込まない", async () => {
+  const writes = [];
+  const written = await saveToFile("/profiles/grok/one/auth.json", { a: 1 }, {
+    isLocked: async () => true,
+    writeFile: async (...args) => { writes.push(args); }
+  });
+
+  assert.equal(written, false);
+  assert.deepEqual(writes, [], "ロック中は一切書かない");
+});
+
+test("ロックが死んだプロセスのものなら書き込む", async () => {
+  const written = await saveToFile("/profiles/grok/one/auth.json", { a: 1 }, {
+    isLocked: async (lockPath, deps) => lockedByAnotherProcess(lockPath, {
+      readFile: async () => "999999:1786966160",
+      isAlive: () => false,
+      ...deps
+    }),
+    writeFile: async () => {},
+    rename: async () => {}
+  });
+
+  assert.equal(written, true);
+});
+
+// 途中まで書かれた認証情報が残ると、ログインし直すまで復帰できない。
+test("書いてから rename で差し替える（途中状態を本体に残さない）", async () => {
+  const order = [];
+  await saveToFile("/profiles/grok/one/auth.json", { a: 1 }, {
+    isLocked: async () => false,
+    writeFile: async path => { order.push(`write:${path}`); },
+    rename: async (from, to) => { order.push(`rename:${from}→${to}`); }
+  });
+
+  assert.match(order[0], /write:\/profiles\/grok\/one\/auth\.json\.\d+\.tmp/, "本体へ直接書かない");
+  assert.match(order[1], /rename:.*\.tmp→\/profiles\/grok\/one\/auth\.json$/);
+});
+
+test("書き込みに失敗したら一時ファイルを残さない", async () => {
+  const removed = [];
+  await assert.rejects(() => saveToFile("/profiles/grok/one/auth.json", { a: 1 }, {
+    isLocked: async () => false,
+    writeFile: async () => { throw new Error("disk full"); },
+    unlink: async path => { removed.push(path); }
+  }), /disk full/);
+
+  assert.equal(removed.length, 1);
+  assert.match(removed[0], /\.tmp$/);
 });
