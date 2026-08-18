@@ -10,10 +10,10 @@ const VERSION = "0.9.2";
 const port = Number(process.env.PORT || 4174);
 const host = "127.0.0.1";
 const apiToken = process.env.CAPACITY_ATLAS_TOKEN || randomBytes(32).toString("base64url");
-const mbsReadToken = randomBytes(32).toString("base64url");
+const readOnlyToken = randomBytes(32).toString("base64url");
 const runtimePath = process.env.CAPACITY_ATLAS_RUNTIME_PATH || join(homedir(), ".capacity-atlas", "runtime.json");
 const accountManager = new AccountManager();
-const server = createServer({ accountManager, apiToken, mbsReadToken });
+const server = createServer({ accountManager, apiToken, readOnlyToken });
 let stopping = false;
 
 async function writeRuntime() {
