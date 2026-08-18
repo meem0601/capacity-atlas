@@ -127,3 +127,10 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). Bug reports and pull requests are welcom
 [MIT License](LICENSE). Third-party notices are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 Capacity Atlas is an independent project and is not affiliated with, endorsed by, or sponsored by OpenAI, Anthropic, or xAI. Their names and marks belong to their respective owners.
+
+## Credential handling
+
+- Credentials stay on the device (Keychain on macOS, files elsewhere) and are never sent anywhere
+- Access tokens nearing expiry are renewed with the `refresh_token` grant and written back to the same store. The connector yields while a CLI holds the write lock and retries on the next collection
+- **Claude's refresh is not a published endpoint** — it reuses constants shipped in the CLI. A vendor change can stop it without notice; it then falls back to "re-authenticate required", which a manual sign-in fixes
+- Grok uses the standard OIDC refresh, resolving `token_endpoint` from the issuer's OpenID configuration
