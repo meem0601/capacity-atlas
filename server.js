@@ -14,33 +14,49 @@ const TYPES = {
   ".json": "application/json; charset=utf-8",
   ".svg": "image/svg+xml"
 };
-const ALLOWED_ORIGINS = new Set([
+/** カンマ区切りの環境変数を集合にする。空白と空要素は落とす。 */
+function urlSetFromEnv(name, defaults = []) {
+  const configured = String(process.env[name] || "")
+    .split(",")
+    .map(value => value.trim())
+    .filter(Boolean);
+  return new Set([...defaults, ...configured]);
+}
+
+/**
+ * Connector を読める Web アプリのオリジン。
+ * 既定は Capacity Atlas 自身の画面とローカル開発だけ。自社ツールから読ませたい場合は
+ * CAPACITY_ATLAS_ALLOWED_ORIGINS に足す（例: "https://tools.example.com"）。
+ */
+const ALLOWED_ORIGINS = urlSetFromEnv("CAPACITY_ATLAS_ALLOWED_ORIGINS", [
   "https://capacity-atlas.vercel.app",
-  "https://meem-business-system.vercel.app",
   "http://localhost:3000",
   "http://127.0.0.1:3000"
 ]);
-const ALLOWED_MBS_RETURNS = new Set([
-  "https://meem-business-system.vercel.app/data/ai-tools",
-  "http://localhost:3000/data/ai-tools",
-  "http://127.0.0.1:3000/data/ai-tools"
-]);
+
+/**
+ * /app-connect の戻り先として許可する URL（完全一致）。
+ * 既定は空 = ブリッジ無効。使う人が CAPACITY_ATLAS_RETURN_URLS で明示的に開ける。
+ * 既定で開けないのは、読み取りトークンの渡し先だからで、
+ * 意図しない転送先が増えないようにするため。
+ */
+const ALLOWED_RETURN_URLS = urlSetFromEnv("CAPACITY_ATLAS_RETURN_URLS");
 
 const CAPABILITY_TOKEN_PATTERN = /^[A-Za-z0-9_-]{20,256}$/;
 
-export function mbsReturnUrl(candidate, mbsReadToken) {
-  if (!CAPABILITY_TOKEN_PATTERN.test(mbsReadToken || "") || typeof candidate !== "string") return null;
+export function connectReturnUrl(candidate, readOnlyToken, allowedReturnUrls = ALLOWED_RETURN_URLS) {
+  if (!CAPABILITY_TOKEN_PATTERN.test(readOnlyToken || "") || typeof candidate !== "string") return null;
   let target;
   try { target = new URL(candidate); } catch { return null; }
   target.hash = "";
-  if (!ALLOWED_MBS_RETURNS.has(target.toString())) return null;
-  target.hash = `capacity-atlas-token=${encodeURIComponent(mbsReadToken)}`;
+  if (!allowedReturnUrls.has(target.toString())) return null;
+  target.hash = `capacity-atlas-token=${encodeURIComponent(readOnlyToken)}`;
   return target.toString();
 }
 
-function isAllowedOrigin(origin, requestHost) {
+function isAllowedOrigin(origin, requestHost, allowedOrigins = ALLOWED_ORIGINS) {
   if (!origin) return true;
-  if (ALLOWED_ORIGINS.has(origin)) return true;
+  if (allowedOrigins.has(origin)) return true;
   if (!requestHost) return false;
   try {
     const url = new URL(origin);
@@ -59,9 +75,9 @@ function tokenMatches(actual, expected) {
   return left.length === right.length && timingSafeEqual(left, right);
 }
 
-function corsHeaders(request) {
+function corsHeaders(request, allowedOrigins) {
   const origin = request.headers.origin;
-  if (!origin || !isAllowedOrigin(origin, request.headers.host)) return {};
+  if (!origin || !isAllowedOrigin(origin, request.headers.host, allowedOrigins)) return {};
   return {
     "access-control-allow-origin": origin,
     "access-control-allow-methods": "GET, POST, DELETE, OPTIONS",
@@ -71,14 +87,16 @@ function corsHeaders(request) {
   };
 }
 
-function json(request, response, status, body) {
-  response.writeHead(status, {
-    "content-type": "application/json; charset=utf-8",
-    "cache-control": "no-store",
-    "x-content-type-options": "nosniff",
-    ...corsHeaders(request)
-  });
-  response.end(JSON.stringify(body));
+function jsonWith(allowedOrigins) {
+  return function json(request, response, status, body) {
+    response.writeHead(status, {
+      "content-type": "application/json; charset=utf-8",
+      "cache-control": "no-store",
+      "x-content-type-options": "nosniff",
+      ...corsHeaders(request, allowedOrigins)
+    });
+    response.end(JSON.stringify(body));
+  };
 }
 
 async function readJsonBody(request, maxBytes = 10_000) {
@@ -118,7 +136,16 @@ export function safePublicPath(pathname) {
   return target;
 }
 
-export function createServer({ collect, refreshMs = 60_000, accountManager = new AccountManager(), apiToken = null, mbsReadToken = null } = {}) {
+export function createServer({
+  collect,
+  refreshMs = 60_000,
+  accountManager = new AccountManager(),
+  apiToken = null,
+  readOnlyToken = null,
+  allowedOrigins = ALLOWED_ORIGINS,
+  allowedReturnUrls = ALLOWED_RETURN_URLS
+} = {}) {
+  const json = jsonWith(allowedOrigins);
   const collectAccounts = collect || (async () => collectDirectProviders({ homes: await accountManager.homes() }));
   let snapshot = null;
   let collectedAtMs = 0;
@@ -149,9 +176,9 @@ export function createServer({ collect, refreshMs = 60_000, accountManager = new
   const server = http.createServer(async (request, response) => {
     const url = new URL(request.url || "/", "http://127.0.0.1");
     try {
-      if (request.method === "GET" && url.pathname === "/mbs-connect") {
-        const target = mbsReturnUrl(url.searchParams.get("return"), mbsReadToken);
-        if (!target) return json(request, response, mbsReadToken ? 400 : 503, { error: "MBS connection is unavailable" });
+      if (request.method === "GET" && url.pathname === "/app-connect") {
+        const target = connectReturnUrl(url.searchParams.get("return"), readOnlyToken, allowedReturnUrls);
+        if (!target) return json(request, response, readOnlyToken ? 400 : 503, { error: "App connection is unavailable" });
         response.writeHead(302, {
           location: target,
           "cache-control": "no-store",
@@ -160,11 +187,11 @@ export function createServer({ collect, refreshMs = 60_000, accountManager = new
         });
         return response.end();
       }
-      if (url.pathname.startsWith("/api/") && request.headers.origin && !isAllowedOrigin(request.headers.origin, request.headers.host)) {
+      if (url.pathname.startsWith("/api/") && request.headers.origin && !isAllowedOrigin(request.headers.origin, request.headers.host, allowedOrigins)) {
         return json(request, response, 403, { error: "Origin not allowed" });
       }
       if (request.method === "OPTIONS" && url.pathname.startsWith("/api/")) {
-        response.writeHead(204, corsHeaders(request));
+        response.writeHead(204, corsHeaders(request, allowedOrigins));
         return response.end();
       }
       if (request.method === "GET" && url.pathname === "/api/health") {
@@ -181,10 +208,10 @@ export function createServer({ collect, refreshMs = 60_000, accountManager = new
       const readOnlyRoute = (request.method === "GET" && url.pathname === "/api/status")
         || (request.method === "POST" && url.pathname === "/api/refresh");
       const hasFullAccess = tokenMatches(suppliedToken, apiToken);
-      const hasMbsReadAccess = Boolean(mbsReadToken)
+      const hasReadOnlyAccess = Boolean(readOnlyToken)
         && readOnlyRoute
-        && tokenMatches(suppliedToken, mbsReadToken);
-      if (url.pathname.startsWith("/api/") && !hasFullAccess && !hasMbsReadAccess) {
+        && tokenMatches(suppliedToken, readOnlyToken);
+      if (url.pathname.startsWith("/api/") && !hasFullAccess && !hasReadOnlyAccess) {
         return json(request, response, 401, { error: "Connector authorization required" });
       }
       if (isStopping && !(request.method === "POST" && url.pathname === "/api/shutdown")) {

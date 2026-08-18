@@ -1,7 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { once } from "node:events";
-import { createServer, mbsReturnUrl, safePublicPath } from "../server.js";
+import { createServer, connectReturnUrl, safePublicPath } from "../server.js";
+
+// 社内固有の URL は持たない。ブリッジは呼び出し側が明示的に許可する設計。
+const APP_ORIGIN = "https://tools.example.com";
+const APP_RETURN_URL = `${APP_ORIGIN}/ai`;
 
 const inertAccountManager = () => ({ shutdown: async () => {} });
 
@@ -30,13 +34,15 @@ test("GET /api/status returns normalized account data", async (t) => {
   assert.equal(body.accounts[0].provider, "codex");
 });
 
-test("MBS bridge redirects only to the exact allowlisted AI tools page", async (t) => {
-  const token = "mbs-capability-token-1234567890";
+test("the app bridge redirects only to an exactly allowlisted return URL", async (t) => {
+  const token = "read-only-capability-token-1234567890";
   const server = createServer({
     collect: async () => ({ accounts: [] }),
     accountManager: inertAccountManager(),
     apiToken: "full-capability-token-1234567890",
-    mbsReadToken: token
+    readOnlyToken: token,
+    allowedOrigins: new Set([APP_ORIGIN]),
+    allowedReturnUrls: new Set([APP_RETURN_URL])
   });
   server.listen(0, "127.0.0.1");
   await once(server, "listening");
@@ -44,35 +50,37 @@ test("MBS bridge redirects only to the exact allowlisted AI tools page", async (
   const { port } = server.address();
   const base = `http://127.0.0.1:${port}`;
 
-  const accepted = await fetch(`${base}/mbs-connect?return=${encodeURIComponent("https://meem-business-system.vercel.app/data/ai-tools")}`, {
+  const accepted = await fetch(`${base}/app-connect?return=${encodeURIComponent("https://tools.example.com/ai")}`, {
     redirect: "manual"
   });
   assert.equal(accepted.status, 302);
   assert.equal(
     accepted.headers.get("location"),
-    `https://meem-business-system.vercel.app/data/ai-tools#capacity-atlas-token=${token}`
+    `https://tools.example.com/ai#capacity-atlas-token=${token}`
   );
   assert.equal(accepted.headers.get("referrer-policy"), "no-referrer");
 
-  const rejected = await fetch(`${base}/mbs-connect?return=${encodeURIComponent("https://evil.example/data/ai-tools")}`, {
+  const rejected = await fetch(`${base}/app-connect?return=${encodeURIComponent("https://evil.example/data/ai-tools")}`, {
     redirect: "manual"
   });
   assert.equal(rejected.status, 400);
 });
 
-test("MBS bridge rejects invalid capability token formats", () => {
-  const target = "https://meem-business-system.vercel.app/data/ai-tools";
-  assert.equal(mbsReturnUrl(target, "short"), null);
-  assert.equal(mbsReturnUrl(target, "invalid+token+characters+123456"), null);
+test("the app bridge rejects invalid capability token formats", () => {
+  const target = APP_RETURN_URL;
+  assert.equal(connectReturnUrl(target, "short"), null);
+  assert.equal(connectReturnUrl(target, "invalid+token+characters+123456"), null);
 });
 
-test("MBS production origin can read status with the capability token", async (t) => {
-  const token = "mbs-origin-capability-token";
+test("an allowlisted origin can read status with the capability token", async (t) => {
+  const token = "read-only-origin-capability-token";
   const server = createServer({
     collect: async () => ({ accounts: [] }),
     accountManager: inertAccountManager(),
     apiToken: "full-capability-token-1234567890",
-    mbsReadToken: token
+    readOnlyToken: token,
+    allowedOrigins: new Set([APP_ORIGIN]),
+    allowedReturnUrls: new Set([APP_RETURN_URL])
   });
   server.listen(0, "127.0.0.1");
   await once(server, "listening");
@@ -81,17 +89,17 @@ test("MBS production origin can read status with the capability token", async (t
 
   const response = await fetch(`http://127.0.0.1:${port}/api/status`, {
     headers: {
-      origin: "https://meem-business-system.vercel.app",
+      origin: "https://tools.example.com",
       "x-capacity-atlas-token": token
     }
   });
   assert.equal(response.status, 200);
-  assert.equal(response.headers.get("access-control-allow-origin"), "https://meem-business-system.vercel.app");
+  assert.equal(response.headers.get("access-control-allow-origin"), "https://tools.example.com");
 
   const refreshed = await fetch(`http://127.0.0.1:${port}/api/refresh`, {
     method: "POST",
     headers: {
-      origin: "https://meem-business-system.vercel.app",
+      origin: "https://tools.example.com",
       "x-capacity-atlas-token": token
     }
   });
@@ -105,7 +113,7 @@ test("MBS production origin can read status with the capability token", async (t
     const rejected = await fetch(`http://127.0.0.1:${port}${pathname}`, {
       method,
       headers: {
-        origin: "https://meem-business-system.vercel.app",
+        origin: "https://tools.example.com",
         "content-type": "application/json",
         "x-capacity-atlas-token": token
       },
@@ -113,7 +121,7 @@ test("MBS production origin can read status with the capability token", async (t
         ? JSON.stringify({ provider: "codex" })
         : undefined
     });
-    assert.equal(rejected.status, 401, `${method} ${pathname} must reject the MBS read token`);
+    assert.equal(rejected.status, 401, `${method} ${pathname} must reject the read-only token`);
   }
 });
 

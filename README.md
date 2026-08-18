@@ -60,7 +60,17 @@ Get-FileHash .\Capacity-Atlas-Connector-Windows-x64.zip -Algorithm SHA256
 - macOS KeychainおよびWindows / Linuxの保護された認証ファイルに対応
 - 認証状態と、一時的な利用枠APIエラーを分離
 - ホストされたUIへトークン、Cookie、実利用枠を送信しない
-- MBS管理者画面から明示的に接続した場合だけ、同じブラウザタブへConnectorプロセス限りの**残容量取得・更新専用**トークンを引き渡し、MBS画面内で容量を直接表示。このトークンではアカウント追加・解除、ログイン取消、Connector停止は実行不可
+- 自分のWebアプリから明示的に接続した場合だけ、同じブラウザタブへConnectorプロセス限りの**残容量取得・更新専用**トークンを引き渡し、そのアプリ内で容量を直接表示。このトークンではアカウント追加・解除、ログイン取消、Connector停止は実行不可
+- 連携先は既定で無効。使う場合は環境変数で明示的に許可する
+
+  ```bash
+  CAPACITY_ATLAS_ALLOWED_ORIGINS="https://tools.example.com" \
+  CAPACITY_ATLAS_RETURN_URLS="https://tools.example.com/ai" \
+  ./Capacity\ Atlas\ Connector
+  ```
+
+  アプリ側は `http://127.0.0.1:4174/app-connect?return=<許可したURL>` へ遷移させると、
+  戻り先の URL fragment に `capacity-atlas-token` が付いて返る
 - OAuth待機は15分で自動終了し、画面を閉じた場合も子プロセスを回収
 
 ## 構成
