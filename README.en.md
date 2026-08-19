@@ -130,7 +130,7 @@ Capacity Atlas is an independent project and is not affiliated with, endorsed by
 
 ## Credential handling
 
-- Credentials stay on the device (Keychain on macOS, files elsewhere) and are never sent anywhere
-- Access tokens nearing expiry are renewed with the `refresh_token` grant and written back to the same store. The connector yields while a CLI holds the write lock and retries on the next collection
+- Credentials are stored only on the device (Keychain on macOS, files elsewhere). The Connector sends access and refresh tokens only to explicitly validated provider authentication and quota endpoints, never to the hosted UI or a Capacity Atlas backend
+- Access tokens nearing expiry are renewed with the `refresh_token` grant and written back while an exclusive lock is held. If a CLI holds the lock or persistence fails, the Connector does not use the refreshed token and fails that collection closed
 - **Claude's refresh is not a published endpoint** — it reuses constants shipped in the CLI. A vendor change can stop it without notice; it then falls back to "re-authenticate required", which a manual sign-in fixes
-- Grok uses the standard OIDC refresh, resolving `token_endpoint` from the issuer's OpenID configuration
+- Grok uses standard OIDC refresh only through the approved `https://auth.x.ai` issuer and a same-origin `token_endpoint`

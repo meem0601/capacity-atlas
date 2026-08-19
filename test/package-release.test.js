@@ -4,6 +4,19 @@ import { readFile } from "node:fs/promises";
 
 const scriptPath = new URL("../scripts/package-release.mjs", import.meta.url);
 
+test("release version is consistent across package metadata, runtime, and asset pins", async () => {
+  const packageJson = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
+  const packageLock = JSON.parse(await readFile(new URL("../package-lock.json", import.meta.url), "utf8"));
+  const server = await readFile(new URL("../server.js", import.meta.url), "utf8");
+  const index = await readFile(new URL("../public/index.html", import.meta.url), "utf8");
+  assert.equal(packageLock.version, packageJson.version);
+  assert.equal(packageLock.packages[""].version, packageJson.version);
+  assert.match(server, new RegExp(`version: ["']${packageJson.version.replaceAll(".", "\\.")}["']`));
+  for (const asset of ["locale-bootstrap.js", "styles.css", "connector.css", "client.js"]) {
+    assert.match(index, new RegExp(`${asset.replace(".", "\\.")}\\?v=${packageJson.version.replaceAll(".", "\\.")}`));
+  }
+});
+
 test("macOS package uses a native APPL launcher so Finder can launch it", async () => {
   const source = await readFile(scriptPath, "utf8");
   assert.match(source, /<key>CFBundlePackageType<\/key><string>APPL<\/string>/);
@@ -42,6 +55,9 @@ test("documentation describes Claude browser OAuth and multi-account profiles", 
   assert.match(readme, /Claude.*分離プロファイル.*ClaudeブラウザOAuth/);
   assert.doesNotMatch(readme, /Claude.*アクティブな1アカウント/);
   assert.match(readmeEnglish, /Claude.*isolated profiles/i);
+  assert.doesNotMatch(readme, /認証情報.*外部へ送信されない/);
+  assert.match(readme, /明示的に検証した提供元の認証・利用枠API/);
+  assert.match(readmeEnglish, /validated provider authentication and quota endpoints/i);
   assert.match(readme, /正式な第三者向け安定APIではない/);
   assert.doesNotMatch(readme, /初版の新規認証では各社の公式CLIがPCに入っている必要があります/);
 });
