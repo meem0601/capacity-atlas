@@ -84,7 +84,7 @@ Get-FileHash .\Capacity-Atlas-Connector-Windows-x64.zip -Algorithm SHA256
 | サービス | 利用枠取得 | 複数アカウント | 新規認証 |
 | --- | --- | --- | --- |
 | GPT / Codex | 直接取得 | 分離プロファイル | OpenAIブラウザOAuth |
-| Claude | ベストエフォート | 現行版は端末のアクティブな1アカウント | ClaudeブラウザOAuth |
+| Claude | ベストエフォート | 分離プロファイル | ClaudeブラウザOAuth |
 | Grok | ベストエフォート | 現行版は端末のアクティブな1アカウント | xAIブラウザOAuth |
 
 GPT / Codexの認証ヘルパーは配布パッケージへ同梱します。ClaudeとGrokは、初回接続時に各社の公式配布元からConnector専用領域へ取得し、プラットフォーム署名・チェックサムを検証します。
@@ -151,7 +151,7 @@ OpenAI、Claude、Grokおよび各ロゴは各権利者の商標です。Capacit
 
 ## 認証情報の扱い
 
-- 認証情報は端末内（macOS は Keychain、その他はファイル）にのみ保存され、外部へ送信されない
-- 期限が近づいたアクセストークンは `refresh_token` グラントで自動更新し、元の保管先へ書き戻す。CLI が書き込みロックを持っている間は書かず、次回に譲る
+- 認証情報は端末内（macOS は Keychain、その他はファイル）にのみ保存する。Connectorはアクセストークン・更新用トークンを、明示的に検証した提供元の認証・利用枠APIへだけ直接送信し、ホストされたUIやCapacity Atlasのバックエンドへは送信しない
+- 期限が近づいたアクセストークンは `refresh_token` グラントで自動更新し、排他的ロックを保持したまま元の保管先へ書き戻す。CLI がロックを持つ場合や保存に失敗した場合は更新済みトークンを使わず、その収集では安全側へ倒す
 - **Claude の更新は公式に公開された口ではない**（CLI 同梱の定数を使う非公式連携）。提供元の仕様変更で予告なく止まりうる。その場合は「再認証が必要」に戻るだけで、手動ログインで復帰できる
-- Grok は発行元の OpenID 設定文書から token_endpoint を引く標準の OIDC 更新
+- Grok は承認済みの `https://auth.x.ai` からOpenID設定文書を取得し、同一Originの `token_endpoint` だけを使う標準のOIDC更新
