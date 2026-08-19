@@ -23,6 +23,12 @@ test("dynamic capacity and status labels are Japanese", () => {
   assert.match(client, /t\("account\.updated"/);
 });
 
+test("security copy distinguishes provider API traffic from Capacity Atlas cloud", () => {
+  assert.match(i18n, /提供元の認証・利用枠APIにだけ直接送信され、Web画面やCapacity Atlasのクラウドには送信されません/);
+  assert.match(i18n, /sent directly only to provider authentication and quota APIs, never to this web page or the Capacity Atlas cloud/);
+  assert.doesNotMatch(i18n, /Web画面やクラウドへ送信されません|never sent to this web page or the cloud/);
+});
+
 test("authenticated Claude is distinguished from quota availability", () => {
   assert.match(i18n, /"status\.connected": "接続済み"/);
   assert.match(i18n, /"account\.collecting": "接続済み・残容量を取得中"/);
