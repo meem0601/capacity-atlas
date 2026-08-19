@@ -36,9 +36,12 @@ test("desktop launchers use capability tokens and gracefully replace only verifi
   assert.doesNotMatch(source, /open https:\/\/capacity-atlas\.vercel\.app/);
 });
 
-test("documentation describes Claude browser OAuth without a preinstalled CLI", async () => {
+test("documentation describes Claude browser OAuth and multi-account profiles", async () => {
   const readme = await readFile(new URL("../README.md", import.meta.url), "utf8");
-  assert.match(readme, /Claude.*ブラウザOAuth/);
+  const readmeEnglish = await readFile(new URL("../README.en.md", import.meta.url), "utf8");
+  assert.match(readme, /Claude.*分離プロファイル.*ClaudeブラウザOAuth/);
+  assert.doesNotMatch(readme, /Claude.*アクティブな1アカウント/);
+  assert.match(readmeEnglish, /Claude.*isolated profiles/i);
   assert.match(readme, /正式な第三者向け安定APIではない/);
   assert.doesNotMatch(readme, /初版の新規認証では各社の公式CLIがPCに入っている必要があります/);
 });

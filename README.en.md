@@ -83,11 +83,11 @@ Please report security issues privately as described in [SECURITY.md](SECURITY.m
 
 ## Supported providers
 
-| Provider | Authentication | Quota source |
-| --- | --- | --- |
-| OpenAI Codex | Browser OAuth | OpenAI usage endpoint |
-| Claude | Browser OAuth through the official Claude helper | Claude usage endpoint |
-| Grok | Browser OAuth through the official Grok helper | xAI billing endpoint |
+| Provider | Authentication | Account scope | Quota source |
+| --- | --- | --- | --- |
+| OpenAI Codex | Browser OAuth | Multiple isolated profiles | OpenAI usage endpoint |
+| Claude | Browser OAuth through the official Claude helper | Multiple isolated profiles | Claude usage endpoint |
+| Grok | Browser OAuth through the official Grok helper | Current active account | xAI billing endpoint |
 
 Provider quota endpoints are not guaranteed stable third-party APIs. Provider-side changes may temporarily break collection.
 

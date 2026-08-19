@@ -84,7 +84,7 @@ Get-FileHash .\Capacity-Atlas-Connector-Windows-x64.zip -Algorithm SHA256
 | サービス | 利用枠取得 | 複数アカウント | 新規認証 |
 | --- | --- | --- | --- |
 | GPT / Codex | 直接取得 | 分離プロファイル | OpenAIブラウザOAuth |
-| Claude | ベストエフォート | 現行版は端末のアクティブな1アカウント | ClaudeブラウザOAuth |
+| Claude | ベストエフォート | 分離プロファイル | ClaudeブラウザOAuth |
 | Grok | ベストエフォート | 現行版は端末のアクティブな1アカウント | xAIブラウザOAuth |
 
 GPT / Codexの認証ヘルパーは配布パッケージへ同梱します。ClaudeとGrokは、初回接続時に各社の公式配布元からConnector専用領域へ取得し、プラットフォーム署名・チェックサムを検証します。
