@@ -237,18 +237,27 @@ test("a committed registration wins a simultaneous cancellation without deleting
 test("failed isolated-profile cleanup is retained and retried instead of forgotten", async () => {
   const child = fakeChild();
   let removals = 0;
+  let resolveRetry;
+  const retried = new Promise(resolve => { resolveRetry = resolve; });
   const manager = new AccountManager({
     root: "/tmp/capacity-atlas-cleanup-retry",
     mkdir: async () => {},
     access: async () => { throw Object.assign(new Error("missing"), { code: "ENOENT" }); },
-    rm: async () => { removals += 1; throw new Error("busy"); },
+    rm: async () => {
+      removals += 1;
+      if (removals >= 2) resolveRetry();
+      throw new Error("busy");
+    },
     spawn: () => child,
     sessionRetentionMs: 10
   });
 
   const session = await manager.start("codex");
   child.emit("close", 1);
-  await new Promise(resolve => setTimeout(resolve, 35));
+  await Promise.race([
+    retried,
+    new Promise((_, reject) => setTimeout(() => reject(new Error("cleanup retry timed out")), 1_000))
+  ]);
   assert.ok(removals >= 2);
   assert.equal(manager.get(session.id)?.status, "failed");
 });
