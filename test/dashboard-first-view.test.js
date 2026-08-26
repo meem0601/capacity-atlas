@@ -8,11 +8,22 @@ async function source(name) {
   return readFile(new URL(name, root), "utf8");
 }
 
-test("first view prioritizes account capacity instead of a marketing hero", async () => {
-  const html = await source("index.html");
-  assert.doesNotMatch(html, /class="hero"/);
-  assert.doesNotMatch(html, /AIの残容量を、/);
-  assert.ok(html.indexOf('id="accountGrid"') < html.indexOf('class="summary-grid"'));
+test("disconnected first view explains the product before showing the operational dashboard", async () => {
+  const [html, client, i18n] = await Promise.all([
+    source("index.html"),
+    source("client.js"),
+    source("i18n.js")
+  ]);
+  assert.match(html, /id="welcomePanel"/);
+  assert.match(html, /data-i18n="welcome\.title"/);
+  assert.match(html, /data-i18n="welcome\.support"/);
+  assert.match(html, /data-i18n="welcome\.privacy"/);
+  assert.match(html, /class="welcome-steps"/);
+  assert.match(html, /href="#accounts"[^>]*data-i18n="welcome\.dashboard"/);
+  assert.ok(html.indexOf('id="welcomePanel"') < html.indexOf('id="accountGrid"'));
+  assert.match(client, /welcomePanel\.hidden = state\.connectorReady/);
+  assert.match(i18n, /"welcome\.title": "複数AIの利用枠を、1画面で確認。"/);
+  assert.match(i18n, /"welcome\.support": "ChatGPT（Codex利用枠）・Claude・Grokに対応"/);
 });
 
 test("first-time users can download the Connector instead of being sent to a dead loopback URL", async () => {
@@ -40,8 +51,10 @@ test("download CTA is visible in the first view and keeps GitHub Release as the 
   assert.doesNotMatch(html, /id="downloadConnector"[^>]*hidden/);
   assert.match(i18n, /"download\.title": "Connectorをダウンロード"/);
   assert.match(i18n, /"download\.title": "Download the Connector"/);
-  assert.match(css, /\.download-strip\s*\{/);
-  assert.match(css, /@media \(max-width: 580px\)[\s\S]*?\.download-strip/);
+  assert.match(css, /\.welcome-panel\s*\{/);
+  assert.match(css, /@media \(max-width: 580px\)[\s\S]*?\.welcome-panel/);
+  assert.match(css, /@media \(max-width: 580px\)[\s\S]*?\.welcome-main \{ display: contents; \}/);
+  assert.match(css, /@media \(max-width: 580px\)[\s\S]*?\.welcome-start \{[^}]*order: 6;/);
   assert.match(css, /@media \(max-width: 580px\)[\s\S]*?\.download-actions \{ display: grid; grid-template-columns: 1fr; \}/);
 });
 

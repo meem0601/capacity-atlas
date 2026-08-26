@@ -108,6 +108,8 @@ function accountCard(account) {
 
 function render() {
   const accounts = state.data?.accounts || [];
+  const welcomePanel = $("#welcomePanel");
+  welcomePanel.hidden = state.connectorReady;
   const providers = visibleProviders(accounts);
   if (state.provider !== "all" && !providers.includes(state.provider)) state.provider = "all";
   const filtered = state.provider === "all" ? accounts : accounts.filter(account => account.provider === state.provider);
