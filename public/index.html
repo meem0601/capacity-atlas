@@ -43,15 +43,41 @@
       </header>
 
       <div class="content">
-        <section class="download-strip" id="downloadConnector" aria-labelledby="downloadConnectorTitle">
-          <div class="download-copy">
-            <b id="downloadConnectorTitle" data-i18n="download.title">Connectorをダウンロード</b>
-            <span data-i18n="download.description">OSに合う版を選び、GitHub Releaseからダウンロードします</span>
+        <section class="welcome-panel" id="welcomePanel" aria-labelledby="welcomeTitle">
+          <div class="welcome-main">
+            <p class="welcome-kicker" data-i18n="welcome.kicker">無料・ローカルファースト・オープンソース</p>
+            <h1 id="welcomeTitle" data-i18n="welcome.title">複数AIの利用枠を、1画面で確認。</h1>
+            <p class="welcome-copy" data-i18n="welcome.description">複数アカウントの残容量、リセット時刻、認証状態をまとめて確認。使い切る前に、次に使うアカウントを判断できます。</p>
+            <div class="welcome-providers" aria-label="対応AIサービス" data-i18n-aria="nav.supported">
+              <span><img src="/assets/providers/openai.svg" alt="">ChatGPT / Codex</span>
+              <span><img src="/assets/providers/claude.svg" alt="">Claude</span>
+              <span><img src="/assets/providers/grok.svg" alt="">Grok</span>
+            </div>
+            <p class="welcome-support" data-i18n="welcome.support">ChatGPT（Codex利用枠）・Claude・Grokに対応</p>
+            <div class="welcome-benefits">
+              <div><b data-i18n="welcome.benefitCapacity">残容量とリセットを一覧化</b><span data-i18n="welcome.benefitCapacityDetail">複数サービス・複数アカウントを横断</span></div>
+              <div><b data-i18n="welcome.benefitAuth">再認証が必要な接続も発見</b><span data-i18n="welcome.benefitAuthDetail">使う直前のログイン切れを減らす</span></div>
+            </div>
+            <p class="welcome-privacy"><span aria-hidden="true">✓</span><span data-i18n="welcome.privacy">認証情報と利用枠データはこのPCで処理。Capacity Atlasのクラウドには保存しません。</span></p>
           </div>
-          <div class="download-actions">
-            <a class="download-link download-mac" href="https://github.com/meem0601/capacity-atlas/releases/latest/download/Capacity-Atlas-Connector-macOS-arm64.zip"><span data-i18n="setup.downloadMac">macOS版をダウンロード</span><small>Apple Silicon</small></a>
-            <a class="download-link download-windows" href="https://github.com/meem0601/capacity-atlas/releases/latest/download/Capacity-Atlas-Connector-Windows-x64.zip"><span data-i18n="setup.downloadWindows">Windows版をダウンロード</span><small>Windows x64</small></a>
-            <a class="download-github" href="https://github.com/meem0601/capacity-atlas" data-i18n="download.github">GitHubで見る</a>
+          <div class="welcome-start">
+            <p class="welcome-start-label" data-i18n="welcome.startLabel">3ステップで開始</p>
+            <h2 data-i18n="welcome.start">このPCにConnectorを入れる</h2>
+            <ol class="welcome-steps">
+              <li><span>1</span><div><b data-i18n="welcome.step1">OS版をダウンロード</b><small data-i18n="welcome.step1Detail">GitHub Releaseの最新版を取得</small></div></li>
+              <li><span>2</span><div><b data-i18n="welcome.step2">解凍してConnectorを起動</b><small data-i18n="welcome.step2Detail">ローカルの安全な接続を開始</small></div></li>
+              <li><span>3</span><div><b data-i18n="welcome.step3">AIアカウントを接続</b><small data-i18n="welcome.step3Detail">公式ログイン画面から認証</small></div></li>
+            </ol>
+            <div class="download-strip" id="downloadConnector" aria-labelledby="downloadConnectorTitle">
+              <b id="downloadConnectorTitle" class="visually-hidden" data-i18n="download.title">Connectorをダウンロード</b>
+              <div class="download-actions">
+                <a class="download-link download-mac" href="https://github.com/meem0601/capacity-atlas/releases/latest/download/Capacity-Atlas-Connector-macOS-arm64.zip"><span data-i18n="setup.downloadMac">macOS版をダウンロード</span><small>Apple Silicon</small></a>
+                <a class="download-link download-windows" href="https://github.com/meem0601/capacity-atlas/releases/latest/download/Capacity-Atlas-Connector-Windows-x64.zip"><span data-i18n="setup.downloadWindows">Windows版をダウンロード</span><small>Windows x64</small></a>
+                <a class="download-github" href="https://github.com/meem0601/capacity-atlas" data-i18n="download.github">GitHubで見る</a>
+              </div>
+            </div>
+            <p class="welcome-platform-note" data-i18n="welcome.platformNote">対応環境：Apple Silicon搭載Mac／Windows x64。初回起動時にOSの確認画面が表示される場合があります。</p>
+            <a class="welcome-dashboard-link" href="#accounts" data-i18n="welcome.dashboard">先にダッシュボードを見る</a>
           </div>
         </section>
         <section class="accounts-section" id="accounts">
