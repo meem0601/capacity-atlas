@@ -9,11 +9,15 @@ test("release version is consistent across package metadata, runtime, and asset 
   const packageLock = JSON.parse(await readFile(new URL("../package-lock.json", import.meta.url), "utf8"));
   const server = await readFile(new URL("../server.js", import.meta.url), "utf8");
   const index = await readFile(new URL("../public/index.html", import.meta.url), "utf8");
+  const client = await readFile(new URL("../public/client.js", import.meta.url), "utf8");
   assert.equal(packageLock.version, packageJson.version);
   assert.equal(packageLock.packages[""].version, packageJson.version);
   assert.match(server, new RegExp(`version: ["']${packageJson.version.replaceAll(".", "\\.")}["']`));
   for (const asset of ["locale-bootstrap.js", "styles.css", "connector.css", "client.js"]) {
     assert.match(index, new RegExp(`${asset.replace(".", "\\.")}\\?v=${packageJson.version.replaceAll(".", "\\.")}`));
+  }
+  for (const asset of ["adoption-analytics.js", "setup-diagnostic.js", "login-status-poller.js"]) {
+    assert.match(client, new RegExp(`${asset.replace(".", "\\.")}\\?v=${packageJson.version.replaceAll(".", "\\.")}`));
   }
 });
 

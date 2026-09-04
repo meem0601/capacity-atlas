@@ -17,6 +17,10 @@ Do not include real OAuth tokens, cookies, API keys, account exports, or credent
 - The hosted UI does not receive or persist provider credentials or real quota data.
 - Capacity Atlas never asks users to paste tokens into the browser UI.
 
+## Adoption analytics
+
+The hosted production UI uses Vercel Web Analytics to count page views and a fixed allowlist of setup milestones: OS-specific download clicks, Connector readiness, dashboard readiness, and OAuth start/outcome by provider. The packaged local UI sends only those fixed milestones to the first-party `/api/adoption-event` endpoint; the API validates the allowlist again and forwards event counts without user-provided identifiers. The endpoint caps serialized bodies at 2 KB and applies a transient in-memory per-client rate limit without persisting client addresses in Capacity Atlas storage. Events never include account names, email addresses, account identifiers, credentials, quota values, reset times, or error text. Vercel hosting, analytics, and ordinary deployment logs may still process standard request metadata according to their service settings. The local UI respects browser Do Not Track, and the Connector binary never sends telemetry.
+
 ## Supported versions
 
 Security fixes are applied to the latest release line.

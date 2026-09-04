@@ -3,8 +3,12 @@ import { loginOpenedLabel, setupGuide } from "./setup-model.js?v=0.9.3";
 import { connectorIsCompatible, createConnectorClient } from "./connector-client.js?v=0.9.3";
 import { parseBrowserLogin, parseDeviceLogin, stripTerminalFormatting } from "./login-output-model.js?v=0.9.3";
 import { applyTranslations, normalizeLocale, translate } from "./i18n.js?v=0.9.3";
+import { initializeAdoptionAnalytics, trackAdoptionEvent } from "./adoption-analytics.js?v=0.9.3";
+import { buildSetupDiagnostic } from "./setup-diagnostic.js?v=0.9.3";
+import { createAsyncTerminalPoller } from "./login-status-poller.js?v=0.9.3";
 
 const connector = createConnectorClient();
+initializeAdoptionAnalytics();
 const LOCALE_KEY = "capacity-atlas-locale";
 function initialLocale() {
   try {
@@ -13,7 +17,7 @@ function initialLocale() {
     return normalizeLocale(navigator.language);
   }
 }
-const state = { data: { accounts: [], collectedAt: null }, provider: "all", countdown: 60, setupProvider: "codex", connectorReady: false, connectorOutdated: false, loginTimer: null, activeLoginId: null, disconnectAccountId: null, setupReturnFocus: null, disconnectReturnFocus: null, locale: initialLocale() };
+const state = { data: { accounts: [], collectedAt: null }, provider: "all", countdown: 60, setupProvider: "codex", connectorReady: false, connectorOutdated: false, connectorTracked: false, dashboardTracked: false, loginTimer: null, activeLoginId: null, disconnectAccountId: null, setupReturnFocus: null, disconnectReturnFocus: null, locale: initialLocale() };
 const $ = selector => document.querySelector(selector);
 const t = (key, params = {}) => translate(key, params, state.locale);
 const COLORS = { codex: "#10a37f", claude: "#d97757", grok: "#8b9dff" };
@@ -196,6 +200,10 @@ async function checkConnector() {
     } else {
       state.connectorReady = true;
       state.connectorOutdated = false;
+      if (!state.connectorTracked) {
+        trackAdoptionEvent("connector_ready");
+        state.connectorTracked = true;
+      }
       banner.className = "connector-banner ready";
       $("#connectorTitle").textContent = t("setup.readyTitle");
       $("#connectorDetail").textContent = t("setup.readyDetail");
@@ -299,46 +307,53 @@ async function startAccountLogin() {
   button.textContent = t("setup.starting");
   output.hidden = false;
   renderLoginProgress(output, "");
+  const loginProvider = state.setupProvider;
   try {
-    const session = await connector.startLogin(state.setupProvider);
+    trackAdoptionEvent("oauth_started", { provider: loginProvider });
+    const session = await connector.startLogin(loginProvider);
     state.activeLoginId = session.id;
     if (!$("#accountSetupDialog").open) {
       state.activeLoginId = null;
       await connector.cancelLogin(session.id).catch(() => {});
       return;
     }
-    const update = async () => {
-      const progress = await connector.loginStatus(session.id);
-      if (!$("#accountSetupDialog").open) return true;
-      renderLoginProgress(output, progress.output || "");
-      if (progress.status === "completed") {
-        if (state.loginTimer) clearInterval(state.loginTimer);
-        state.loginTimer = null;
-        state.activeLoginId = null;
-        button.textContent = t("setup.completed");
-        renderLoginResult(output, true);
-        showToast(t("toast.accountAdded"));
-        await loadData(true);
-        return true;
+    const update = createAsyncTerminalPoller({
+      read: () => connector.loginStatus(session.id),
+      handle: async progress => {
+        if (!$("#accountSetupDialog").open || state.activeLoginId !== session.id) return true;
+        renderLoginProgress(output, progress.output || "");
+        if (progress.status === "completed") {
+          if (state.loginTimer) clearInterval(state.loginTimer);
+          state.loginTimer = null;
+          state.activeLoginId = null;
+          trackAdoptionEvent("oauth_completed", { provider: loginProvider });
+          button.textContent = t("setup.completed");
+          renderLoginResult(output, true);
+          showToast(t("toast.accountAdded"));
+          await loadData(true);
+          return true;
+        }
+        if (["failed", "cancelled", "expired"].includes(progress.status)) {
+          if (state.loginTimer) clearInterval(state.loginTimer);
+          state.loginTimer = null;
+          state.activeLoginId = null;
+          trackAdoptionEvent("oauth_failed", { provider: loginProvider });
+          button.disabled = false;
+          button.textContent = t("setup.retry");
+          renderLoginResult(output, false, progress.output);
+          return true;
+        }
+        return false;
       }
-      if (["failed", "cancelled", "expired"].includes(progress.status)) {
-        if (state.loginTimer) clearInterval(state.loginTimer);
-        state.loginTimer = null;
-        state.activeLoginId = null;
-        button.disabled = false;
-        button.textContent = t("setup.retry");
-        renderLoginResult(output, false, progress.output);
-        return true;
-      }
-      return false;
-    };
+    });
     const finished = await update();
     if (!finished) state.loginTimer = setInterval(() => void update().catch(() => {}), 1200);
   } catch (error) {
     if (!$("#accountSetupDialog").open) return;
+    trackAdoptionEvent("oauth_failed", { provider: loginProvider });
     renderLoginResult(output, false, error.message);
     button.disabled = false;
-    button.textContent = setupGuide(state.setupProvider, state.locale)?.actionLabel || t("setup.connect");
+    button.textContent = setupGuide(loginProvider, state.locale)?.actionLabel || t("setup.connect");
   }
 }
 
@@ -398,6 +413,14 @@ async function loadData(force = false) {
     state.data = force ? await connector.refresh() : await connector.status();
     state.connectorReady = true;
     state.connectorOutdated = false;
+    if (!state.connectorTracked) {
+      trackAdoptionEvent("connector_ready");
+      state.connectorTracked = true;
+    }
+    if (!state.dashboardTracked) {
+      trackAdoptionEvent("dashboard_ready");
+      state.dashboardTracked = true;
+    }
     setConnection("live", t("connection.ready"));
   } catch {
     state.data = { accounts: [], collectedAt: null };
@@ -498,6 +521,24 @@ $("#disconnectDialog").addEventListener("close", handleDisconnectDialogClosed);
 $("#disconnectDialog").addEventListener("click", event => { if (event.target === event.currentTarget) closeDisconnectDialog(); });
 $("#accountSetupDialog").addEventListener("click", event => { if (event.target === event.currentTarget) closeSetupDialog(); });
 $("#refreshButton").addEventListener("click", () => loadData(true));
+$("#copySetupDiagnostic").addEventListener("click", async () => {
+  const connectorStatus = state.connectorOutdated ? "outdated" : state.connectorReady ? "ready" : "missing";
+  const report = buildSetupDiagnostic({ navigator, connectorStatus, locale: state.locale });
+  try {
+    await navigator.clipboard.writeText(report);
+    showToast(t("diagnostic.copied"));
+  } catch {
+    showToast(t("diagnostic.copyFailed"));
+  }
+});
+document.addEventListener("click", event => {
+  const link = event.target.closest("a[data-download-os]");
+  if (!link) return;
+  trackAdoptionEvent("download_clicked", {
+    os: link.dataset.downloadOs,
+    location: link.dataset.downloadLocation
+  });
+});
 
 setInterval(() => {
   if (!state.connectorReady) {

@@ -71,6 +71,10 @@ Capacity Atlas does **not** send access tokens, refresh tokens, cookies, or raw 
 
 The Connector listens on `127.0.0.1:4174` and allows only the exact hosted Capacity Atlas origin or its own exact origin. Every API except health requires a per-launch capability token. The launcher passes that token in a URL fragment; the UI immediately removes it from browser history and keeps it only in tab-scoped session storage. Runtime metadata is stored locally with mode `0600` on POSIX systems and under the user-profile ACL on Windows, then removed when the Connector stops. Do not expose the Connector to a LAN or the public internet.
 
+### Adoption analytics
+
+The hosted UI counts page views and a fixed set of setup milestones with Vercel Web Analytics. The packaged local UI sends only the same fixed milestones to the first-party Capacity Atlas API. Events never include account names, email addresses, credentials, quota values, reset times, or error text. Hosting and analytics infrastructure may still process standard request metadata according to its service settings. The Connector binary sends no telemetry, and the local UI respects browser Do Not Track. The beta test procedure is documented in [docs/BETA_TEST.md](docs/BETA_TEST.md).
+
 Please report security issues privately as described in [SECURITY.md](SECURITY.md).
 
 ## Supported platforms

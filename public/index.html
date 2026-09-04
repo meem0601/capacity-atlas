@@ -71,13 +71,17 @@
             <div class="download-strip" id="downloadConnector" aria-labelledby="downloadConnectorTitle">
               <b id="downloadConnectorTitle" class="visually-hidden" data-i18n="download.title">Connectorをダウンロード</b>
               <div class="download-actions">
-                <a class="download-link download-mac" href="https://github.com/meem0601/capacity-atlas/releases/latest/download/Capacity-Atlas-Connector-macOS-arm64.zip"><span data-i18n="setup.downloadMac">macOS版をダウンロード</span><small>Apple Silicon</small></a>
-                <a class="download-link download-windows" href="https://github.com/meem0601/capacity-atlas/releases/latest/download/Capacity-Atlas-Connector-Windows-x64.zip"><span data-i18n="setup.downloadWindows">Windows版をダウンロード</span><small>Windows x64</small></a>
+                <a class="download-link download-mac" data-download-os="macos" data-download-location="welcome" href="https://github.com/meem0601/capacity-atlas/releases/latest/download/Capacity-Atlas-Connector-macOS-arm64.zip"><span data-i18n="setup.downloadMac">macOS版をダウンロード</span><small>Apple Silicon</small></a>
+                <a class="download-link download-windows" data-download-os="windows" data-download-location="welcome" href="https://github.com/meem0601/capacity-atlas/releases/latest/download/Capacity-Atlas-Connector-Windows-x64.zip"><span data-i18n="setup.downloadWindows">Windows版をダウンロード</span><small>Windows x64</small></a>
                 <a class="download-github" href="https://github.com/meem0601/capacity-atlas" data-i18n="download.github">GitHubで見る</a>
               </div>
             </div>
             <p class="welcome-platform-note" data-i18n="welcome.platformNote">対応環境：Apple Silicon搭載Mac／Windows x64。初回起動時にOSの確認画面が表示される場合があります。</p>
-            <a class="welcome-dashboard-link" href="#accounts" data-i18n="welcome.dashboard">先にダッシュボードを見る</a>
+            <p class="welcome-platform-note privacy-analytics" data-i18n="privacy.analytics">改善のため、ページ閲覧・ダウンロード・Connector接続・OAuth成否だけを集計します。イベントにはアカウント名、認証情報、残容量、エラー本文を含めません。配信基盤側では通常のアクセス情報が処理される場合があります。</p>
+            <div class="welcome-help-actions">
+              <button class="diagnostic-copy-button" id="copySetupDiagnostic" type="button" data-i18n="diagnostic.copy">導入診断をコピー</button>
+              <a class="welcome-dashboard-link" href="#accounts" data-i18n="welcome.dashboard">先にダッシュボードを見る</a>
+            </div>
           </div>
         </section>
         <section class="accounts-section" id="accounts">
@@ -122,8 +126,8 @@
     <p class="dialog-copy" data-i18n="setup.description">追加するAIサービスを選んで接続してください。パスワード・トークン・CookieはCapacity AtlasのWeb画面やVercelへ送信しません。</p>
     <div class="connector-banner" id="connectorBanner"><span></span><div><b id="connectorTitle" data-i18n="connector.checking">Connectorを確認中</b><small id="connectorDetail" data-i18n="connector.connecting">このPCの安全な認証機能へ接続しています</small></div></div>
     <div class="connector-install-actions" id="connectorInstallActions" hidden>
-      <a class="connector-download" href="https://github.com/meem0601/capacity-atlas/releases/latest/download/Capacity-Atlas-Connector-macOS-arm64.zip"><b data-i18n="setup.downloadMac">macOS版をダウンロード</b><small>Apple Silicon</small></a>
-      <a class="connector-download" href="https://github.com/meem0601/capacity-atlas/releases/latest/download/Capacity-Atlas-Connector-Windows-x64.zip"><b data-i18n="setup.downloadWindows">Windows版をダウンロード</b><small>Windows x64</small></a>
+      <a class="connector-download" data-download-os="macos" data-download-location="dialog" href="https://github.com/meem0601/capacity-atlas/releases/latest/download/Capacity-Atlas-Connector-macOS-arm64.zip"><b data-i18n="setup.downloadMac">macOS版をダウンロード</b><small>Apple Silicon</small></a>
+      <a class="connector-download" data-download-os="windows" data-download-location="dialog" href="https://github.com/meem0601/capacity-atlas/releases/latest/download/Capacity-Atlas-Connector-Windows-x64.zip"><b data-i18n="setup.downloadWindows">Windows版をダウンロード</b><small>Windows x64</small></a>
       <p data-i18n="setup.downloadHelp">ダウンロード後に解凍してConnectorを起動し、「接続を再確認」を押してください。</p>
     </div>
     <div class="provider-choices" id="providerChoices" role="tablist" aria-label="追加するサービス" data-i18n-aria="setup.serviceLabel">
