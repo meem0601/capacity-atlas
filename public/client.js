@@ -5,6 +5,7 @@ import { parseBrowserLogin, parseDeviceLogin, stripTerminalFormatting } from "./
 import { applyTranslations, normalizeLocale, translate } from "./i18n.js?v=0.9.3";
 import { initializeAdoptionAnalytics, trackAdoptionEvent } from "./adoption-analytics.js?v=0.9.3";
 import { buildSetupDiagnostic } from "./setup-diagnostic.js?v=0.9.3";
+import { createAsyncTerminalPoller } from "./login-status-poller.js?v=0.9.3";
 
 const connector = createConnectorClient();
 initializeAdoptionAnalytics();
@@ -306,50 +307,53 @@ async function startAccountLogin() {
   button.textContent = t("setup.starting");
   output.hidden = false;
   renderLoginProgress(output, "");
+  const loginProvider = state.setupProvider;
   try {
-    trackAdoptionEvent("oauth_started", { provider: state.setupProvider });
-    const session = await connector.startLogin(state.setupProvider);
+    trackAdoptionEvent("oauth_started", { provider: loginProvider });
+    const session = await connector.startLogin(loginProvider);
     state.activeLoginId = session.id;
     if (!$("#accountSetupDialog").open) {
       state.activeLoginId = null;
       await connector.cancelLogin(session.id).catch(() => {});
       return;
     }
-    const update = async () => {
-      const progress = await connector.loginStatus(session.id);
-      if (!$("#accountSetupDialog").open) return true;
-      renderLoginProgress(output, progress.output || "");
-      if (progress.status === "completed") {
-        if (state.loginTimer) clearInterval(state.loginTimer);
-        state.loginTimer = null;
-        state.activeLoginId = null;
-        trackAdoptionEvent("oauth_completed", { provider: state.setupProvider });
-        button.textContent = t("setup.completed");
-        renderLoginResult(output, true);
-        showToast(t("toast.accountAdded"));
-        await loadData(true);
-        return true;
+    const update = createAsyncTerminalPoller({
+      read: () => connector.loginStatus(session.id),
+      handle: async progress => {
+        if (!$("#accountSetupDialog").open || state.activeLoginId !== session.id) return true;
+        renderLoginProgress(output, progress.output || "");
+        if (progress.status === "completed") {
+          if (state.loginTimer) clearInterval(state.loginTimer);
+          state.loginTimer = null;
+          state.activeLoginId = null;
+          trackAdoptionEvent("oauth_completed", { provider: loginProvider });
+          button.textContent = t("setup.completed");
+          renderLoginResult(output, true);
+          showToast(t("toast.accountAdded"));
+          await loadData(true);
+          return true;
+        }
+        if (["failed", "cancelled", "expired"].includes(progress.status)) {
+          if (state.loginTimer) clearInterval(state.loginTimer);
+          state.loginTimer = null;
+          state.activeLoginId = null;
+          trackAdoptionEvent("oauth_failed", { provider: loginProvider });
+          button.disabled = false;
+          button.textContent = t("setup.retry");
+          renderLoginResult(output, false, progress.output);
+          return true;
+        }
+        return false;
       }
-      if (["failed", "cancelled", "expired"].includes(progress.status)) {
-        if (state.loginTimer) clearInterval(state.loginTimer);
-        state.loginTimer = null;
-        state.activeLoginId = null;
-        trackAdoptionEvent("oauth_failed", { provider: state.setupProvider });
-        button.disabled = false;
-        button.textContent = t("setup.retry");
-        renderLoginResult(output, false, progress.output);
-        return true;
-      }
-      return false;
-    };
+    });
     const finished = await update();
     if (!finished) state.loginTimer = setInterval(() => void update().catch(() => {}), 1200);
   } catch (error) {
     if (!$("#accountSetupDialog").open) return;
-    trackAdoptionEvent("oauth_failed", { provider: state.setupProvider });
+    trackAdoptionEvent("oauth_failed", { provider: loginProvider });
     renderLoginResult(output, false, error.message);
     button.disabled = false;
-    button.textContent = setupGuide(state.setupProvider, state.locale)?.actionLabel || t("setup.connect");
+    button.textContent = setupGuide(loginProvider, state.locale)?.actionLabel || t("setup.connect");
   }
 }
 

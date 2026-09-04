@@ -34,7 +34,32 @@ function parseBody(body) {
   }
 }
 
-export function createAdoptionEventHandler({ track }) {
+export function createRateLimiter({ limit = 60, windowMs = 60_000, maxBuckets = 1024, now = Date.now } = {}) {
+  const buckets = new Map();
+  return function allowRequest(req) {
+    const forwarded = req.headers?.["x-forwarded-for"];
+    const address = Array.isArray(forwarded) ? forwarded[0] : forwarded || req.socket?.remoteAddress || "unknown";
+    const key = String(address).slice(0, 256);
+    const timestamp = now();
+    const current = buckets.get(key);
+    if (!current || timestamp - current.startedAt >= windowMs) {
+      if (!current && buckets.size >= maxBuckets) {
+        for (const [bucketKey, bucket] of buckets) {
+          if (timestamp - bucket.startedAt >= windowMs) buckets.delete(bucketKey);
+        }
+        if (buckets.size >= maxBuckets) buckets.delete(buckets.keys().next().value);
+      }
+      buckets.set(key, { startedAt: timestamp, count: 1 });
+      return true;
+    }
+    current.count += 1;
+    return current.count <= limit;
+  };
+}
+
+const defaultRateLimiter = createRateLimiter();
+
+export function createAdoptionEventHandler({ track, allowRequest = defaultRateLimiter }) {
   return async function adoptionEventHandler(req, res) {
     const origin = req.headers?.origin;
     if (!LOCAL_ORIGINS.has(origin)) {
@@ -53,6 +78,12 @@ export function createAdoptionEventHandler({ track }) {
       res.statusCode = 405;
       res.setHeader("Allow", "POST, OPTIONS");
       res.end("Method Not Allowed");
+      return;
+    }
+    if (!allowRequest(req)) {
+      res.statusCode = 429;
+      res.setHeader("Retry-After", "60");
+      res.end("Too Many Requests");
       return;
     }
 

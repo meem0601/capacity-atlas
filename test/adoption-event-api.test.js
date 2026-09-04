@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createAdoptionEventHandler } from "../api/adoption-event.js";
+import { createAdoptionEventHandler, createRateLimiter } from "../api/adoption-event.js";
 
 function responseRecorder() {
   const headers = {};
@@ -67,5 +67,37 @@ test("adoption endpoint answers local preflight without tracking", async () => {
   assert.equal(res.statusCode, 204);
   assert.equal(res.headers["access-control-allow-methods"], "POST, OPTIONS");
   assert.equal(res.headers["access-control-allow-headers"], "Content-Type");
+  assert.equal(tracked.length, 0);
+});
+
+test("rate limiter bounds each transient client window and resets without persistence", () => {
+  let timestamp = 1000;
+  const allow = createRateLimiter({ limit: 2, windowMs: 1000, now: () => timestamp });
+  const firstClient = { headers: { "x-forwarded-for": "203.0.113.10" } };
+  const secondClient = { headers: { "x-forwarded-for": "203.0.113.11" } };
+
+  assert.equal(allow(firstClient), true);
+  assert.equal(allow(firstClient), true);
+  assert.equal(allow(firstClient), false);
+  assert.equal(allow(secondClient), true);
+  timestamp += 1001;
+  assert.equal(allow(firstClient), true);
+});
+
+test("adoption endpoint rejects a rate-limited event before tracking", async () => {
+  const tracked = [];
+  const handler = createAdoptionEventHandler({
+    track: async (...args) => tracked.push(args),
+    allowRequest: () => false
+  });
+  const res = responseRecorder();
+  await handler({
+    method: "POST",
+    headers: { origin: "http://127.0.0.1:4174" },
+    body: { name: "connector_ready" }
+  }, res);
+
+  assert.equal(res.statusCode, 429);
+  assert.equal(res.headers["retry-after"], "60");
   assert.equal(tracked.length, 0);
 });

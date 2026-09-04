@@ -101,7 +101,7 @@ test("keyboard users receive visible focus and an associated arrow-key tab inter
   assert.match(client, /disconnectDialog"\)\.addEventListener\("close"/);
   assert.match(client, /setupReturnFocus\?\.focus/);
   assert.match(client, /disconnectReturnFocus\?\.focus/);
-  assert.match(client, /if \(!\$\("#accountSetupDialog"\)\.open\) return true/);
+  assert.match(client, /if \(!\$\("#accountSetupDialog"\)\.open \|\| state\.activeLoginId !== session\.id\) return true/);
   assert.ok((client.match(/if \(!\$\("#accountSetupDialog"\)\.open\) return;/g) || []).length >= 2);
   assert.match(client, /ArrowLeft/);
   assert.match(client, /ArrowRight/);

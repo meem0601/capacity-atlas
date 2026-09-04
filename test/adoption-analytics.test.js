@@ -71,7 +71,7 @@ test("the local relay respects browser Do Not Track", () => {
   assert.equal(analyticsWindow.va, undefined);
 });
 
-test("the UI records only the anonymous adoption funnel milestones", async () => {
+test("the UI records only the allowlisted adoption funnel milestones", async () => {
   const { readFile } = await import("node:fs/promises");
   const root = new URL("../public/", import.meta.url);
   const [html, client] = await Promise.all([
@@ -88,7 +88,7 @@ test("the UI records only the anonymous adoption funnel milestones", async () =>
   assert.doesNotMatch(client, /trackAdoptionEvent\([^\n]*(email|accountId|remainingPercent|message)/);
 });
 
-test("the product discloses anonymous funnel measurement in both languages", async () => {
+test("the product discloses limited funnel measurement and infrastructure metadata handling in both languages", async () => {
   const { readFile } = await import("node:fs/promises");
   const root = new URL("../public/", import.meta.url);
   const [html, i18n, readme, security] = await Promise.all([
@@ -100,7 +100,12 @@ test("the product discloses anonymous funnel measurement in both languages", asy
 
   assert.match(html, /data-i18n="privacy\.analytics"/);
   assert.match(i18n, /"privacy\.analytics": "改善のため/);
+  assert.match(i18n, /配信基盤側では通常のアクセス情報/);
   assert.match(i18n, /"privacy\.analytics": "To improve setup/);
-  assert.match(readme, /匿名の導入ファネル/);
+  assert.match(i18n, /hosting infrastructure may process standard access metadata/);
+  assert.doesNotMatch(i18n, /匿名集計|anonymously count/);
+  assert.match(readme, /導入ファネル計測/);
+  assert.match(readme, /通常のアクセス情報/);
   assert.match(security, /Adoption analytics/);
+  assert.match(security, /standard request metadata/);
 });

@@ -16,7 +16,7 @@ test("release version is consistent across package metadata, runtime, and asset 
   for (const asset of ["locale-bootstrap.js", "styles.css", "connector.css", "client.js"]) {
     assert.match(index, new RegExp(`${asset.replace(".", "\\.")}\\?v=${packageJson.version.replaceAll(".", "\\.")}`));
   }
-  for (const asset of ["adoption-analytics.js", "setup-diagnostic.js"]) {
+  for (const asset of ["adoption-analytics.js", "setup-diagnostic.js", "login-status-poller.js"]) {
     assert.match(client, new RegExp(`${asset.replace(".", "\\.")}\\?v=${packageJson.version.replaceAll(".", "\\.")}`));
   }
 });
