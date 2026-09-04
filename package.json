@@ -20,7 +20,7 @@
     "package:connector": "npm run prepare:codex && node scripts/package-release.mjs",
     "build:release": "npm run build:connector && npm run package:connector",
     "start": "node connector-entry.js",
-    "check": "node --check server.js && node --check connector-entry.js && node --check public/client.js && node --check public/connector-client.js"
+    "check": "node --check server.js && node --check connector-entry.js && node --check public/client.js && node --check public/connector-client.js && node --check public/adoption-analytics.js && node --check public/setup-diagnostic.js && node --check api/adoption-event.js"
   },
   "engines": {
     "node": ">=20"
@@ -28,5 +28,8 @@
   "devDependencies": {
     "@yao-pkg/pkg": "^6.21.0",
     "tar": "^7.5.22"
+  },
+  "dependencies": {
+    "@vercel/analytics": "2.0.1"
   }
 }

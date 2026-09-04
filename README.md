@@ -133,6 +133,12 @@ npm run build:release
 - ブラウザへOAuthトークンを入力・保存させません。
 - 通常のOpenAI / Claude / Grok CLI認証は削除しません。Capacity Atlas管理プロフィールだけが解除対象です。
 
+### 匿名の導入ファネル計測
+
+公開Web版では、導入改善のためVercel Web Analyticsでページ閲覧、OS別ダウンロードクリック、Connector接続、ダッシュボード表示、OAuth開始・成否だけを匿名集計します。ローカル画面からは同じ固定イベントだけをCapacity Atlasの自前APIへ送ります。アカウント名、メールアドレス、認証情報、残容量、リセット時刻、エラー本文はイベントへ含めません。Connectorバイナリ自体はテレメトリを送信せず、ブラウザのDo Not Trackが有効な場合はローカル画面からも送信しません。
+
+第三者による導入確認は [docs/BETA_TEST.md](docs/BETA_TEST.md) の手順で実施します。
+
 脆弱性報告については [SECURITY.md](SECURITY.md) を参照してください。
 
 ## Contributing
